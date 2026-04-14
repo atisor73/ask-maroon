@@ -12,6 +12,7 @@ const openPdfLink = document.querySelector("#open-pdf-link");
 const pdfFrame = document.querySelector("#pdf-frame");
 
 let selectedCard = null;
+let selectedDocId = null;
 
 function setStatus(message) {
   statusText.textContent = message;
@@ -40,11 +41,18 @@ function buildResultCard(documentResult) {
   const title = documentResult.title || documentResult.doc_id;
   const date = documentResult.date || "Unknown date";
   const snippetHtml = bestChunk?.snippet_html || escapeHtml(bestChunk?.snippet || "");
+  const fullTextHtml = escapeHtml(bestChunk?.text || "");
 
   article.innerHTML = `
     <p class="result-kicker">${date} • ${documentResult.doc_id}</p>
     <h3>${escapeHtml(title)}</h3>
-    <p class="result-snippet">${snippetHtml}</p>
+    <div class="result-snippet-wrap">
+      <p class="result-snippet">${snippetHtml}</p>
+      <div class="result-fulltext" hidden>${fullTextHtml}</div>
+      <button type="button" class="snippet-toggle" aria-expanded="false" aria-label="Expand result text">
+        ▼
+      </button>
+    </div>
     <div class="result-meta">
       <span>
         doc score: ${documentResult.doc_score.toFixed(3)} • best chunk: ${documentResult.best_chunk_score.toFixed(3)}
@@ -53,8 +61,21 @@ function buildResultCard(documentResult) {
     </div>
   `;
 
-  const button = article.querySelector("button");
-  button.addEventListener("click", (event) => {
+  const snippetToggle = article.querySelector(".snippet-toggle");
+  const snippet = article.querySelector(".result-snippet");
+  const fullText = article.querySelector(".result-fulltext");
+  const openPdfButton = article.querySelector(".result-meta button");
+
+  snippetToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isExpanded = snippetToggle.getAttribute("aria-expanded") === "true";
+    snippetToggle.setAttribute("aria-expanded", String(!isExpanded));
+    snippetToggle.textContent = isExpanded ? "▼" : "▲";
+    snippet.hidden = !isExpanded;
+    fullText.hidden = isExpanded;
+  });
+
+  openPdfButton.addEventListener("click", (event) => {
     event.stopPropagation();
     setSelectedCard(article);
     openPdf(documentResult);
@@ -69,9 +90,14 @@ function buildResultCard(documentResult) {
 }
 
 function openPdf(documentResult) {
+  if (selectedDocId === documentResult.doc_id) {
+    return;
+  }
+
   // For now we open the issue PDF inline in the right-hand frame.
   // The backend route now serves it with Content-Disposition: inline.
   const pdfUrl = `${API_BASE_URL}/pdf/${encodeURIComponent(documentResult.doc_id)}`;
+  selectedDocId = documentResult.doc_id;
   viewerTitle.textContent = documentResult.title || documentResult.doc_id;
   viewerSubtitle.textContent = `${documentResult.date || "Unknown date"} • ${documentResult.doc_id}`;
   openPdfLink.href = pdfUrl;
@@ -116,6 +142,7 @@ async function runSearch(event) {
 
     const data = await response.json();
     resultsList.innerHTML = "";
+    selectedDocId = null;
 
     if (!data.document_results.length) {
       renderEmptyState(`No results found for "${query}".`);
