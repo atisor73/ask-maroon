@@ -1,3 +1,5 @@
+<img src="demo.png" width="80%">
+
 # data_pipeline/
 
 `run.sh` runs files sequentially
@@ -39,7 +41,7 @@ python3 embed_text.py --backend both --limit 200
 ### To-do's: fix / adjust PDF ocr to locate blocks within pdf?
 
 
-# backend/
+# Backend/
 Testing query:
 - test_backend.ipynb contains code that runs a query, calling search_fts.py and search_vector.py functions
 
@@ -56,8 +58,9 @@ http://127.0.0.1:8000/search?q=student%20protests&backend=sentence-transformers
 
 
 
-# frontend/
-Start backend: `uvicorn backend.app:app --reload`
+# Frontend/
+Start backend: `uvicorn backend.app:app --reload`  
+
 Serve frontend: `python3 -m http.server 3000`
 
 Navigate: http://127.0.0.1:3000/frontend/
@@ -65,7 +68,7 @@ Backend docs: http://127.0.0.1:8000/docs
 
 
 
-# test queries
+# Test queries
 crimes related to bikes cycling cyclists bicycles
 articles related to haircuts, hairstyles, hair
 
