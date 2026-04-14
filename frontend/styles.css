@@ -100,6 +100,7 @@ body {
   padding: 0;
   color: #8e8a90;
   font-size: 0.85rem;
+  font-style: italic;
   font-family: var(--mono);
   cursor: pointer;
 }
@@ -109,7 +110,7 @@ body {
 }
 
 .masthead-mark {
-  width: clamp(40px, 4vw, 68px);
+  width: clamp(42px, 5vw, 72px);
   height: auto;
   object-fit: contain;
   flex-shrink: 0;
@@ -176,6 +177,14 @@ body {
   gap: 8px;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.field > span {
+  color: var(--maroon);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--mono);
 }
 
 .field input,
