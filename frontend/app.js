@@ -10,9 +10,12 @@ const viewerTitle = document.querySelector("#viewer-title");
 const viewerSubtitle = document.querySelector("#viewer-subtitle");
 const openPdfLink = document.querySelector("#open-pdf-link");
 const pdfFrame = document.querySelector("#pdf-frame");
+const toggleViewerButton = document.querySelector("#toggle-viewer-button");
+const randomIssueButton = document.querySelector("#random-issue-button");
 
 let selectedCard = null;
 let selectedDocId = null;
+let viewerExpanded = false;
 
 function setStatus(message) {
   statusText.textContent = message;
@@ -27,6 +30,18 @@ function escapeHtml(text) {
 function renderEmptyState(message) {
   resultsList.innerHTML = "";
   setStatus(message);
+}
+
+function updateViewerMode() {
+  document.body.classList.toggle("pdf-focus-mode", viewerExpanded);
+  toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF" : "Expand PDF";
+}
+
+function ensureViewerExpanded() {
+  if (!viewerExpanded) {
+    viewerExpanded = true;
+    updateViewerMode();
+  }
 }
 
 function buildResultCard(documentResult) {
@@ -116,6 +131,27 @@ function setSelectedCard(cardElement) {
   }
 }
 
+async function openRandomIssue() {
+  setStatus("Exploring a random issue...");
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/random-document`);
+    if (!response.ok) {
+      throw new Error(`Random issue request failed with status ${response.status}`);
+    }
+
+    const documentResult = await response.json();
+    setSelectedCard(null);
+    ensureViewerExpanded();
+    openPdf(documentResult);
+    setStatus(
+      `Exploring ${documentResult.date || "an undated issue"} • ${documentResult.doc_id}.`
+    );
+  } catch (error) {
+    setStatus(`Random issue failed: ${error.message}`);
+  }
+}
+
 async function runSearch(event) {
   event.preventDefault();
 
@@ -176,3 +212,9 @@ async function runSearch(event) {
 }
 
 searchForm.addEventListener("submit", runSearch);
+randomIssueButton.addEventListener("click", openRandomIssue);
+
+toggleViewerButton.addEventListener("click", () => {
+  viewerExpanded = !viewerExpanded;
+  updateViewerMode();
+});

@@ -5,7 +5,11 @@ python3 clean_text.py
 python3 build_metadata_index.py
 python3 chunk_text.py
 
+python3 embed_text.py --backend sentence-transformers
+
 # python3 embed_text.py --backend sentence-transformers
 # python3 embed_text.py --backend openai
 # python3 embed_text.py --backend both
 # python3 embed_text.py --backend both --limit 200
+
+python3 map_chunks_to_pages.py

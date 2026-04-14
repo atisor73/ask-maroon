@@ -1,3 +1,36 @@
+
+# GPT recommendations: 
+
+==================
+1. Chunks vs SQLite Location
+
+Option A: Local SQLite
+	•	Pros: Easy, fast, no cloud cost, full control.
+	•	Cons: Not inherently distributed; limited by local machine storage if dataset is huge.
+	•	Use case: If you have, say, tens of thousands of PDF pages (or text files), local SQLite is perfect.
+
+Option B: Cloud SQLite
+	•	Usually, people don’t “upload SQLite” to a cloud service directly. Instead:
+	1.	You preprocess and chunk locally.
+	2.	Either upload the database file to cloud storage (S3, GDrive) or
+	3.	Use a cloud vector database (like Weaviate, Pinecone, or Supabase + pgvector) if you want embeddings searchable in the cloud.
+
+Rule of thumb:
+	•	Small to medium datasets → local SQLite + optional FAISS embeddings.
+	•	Big datasets or multi-user access → cloud vector database.
+
+
+Keep current retrieval pipeline
+OCR text
+chunks
+embeddings
+search UI
+
+Add page mapping next
+per-page text extraction
+fuzzy match chunk to page
+open PDF to that page
+
 # Backend Plan
 
 This project already has the right starting point:

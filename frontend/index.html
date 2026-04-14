@@ -11,11 +11,17 @@
       <header class="topbar">
         <div class="masthead">
           <p class="eyebrow">Chicago Maroon Archive</p>
-          <h1>Search The Archive</h1>
-          <div class="title-rule" aria-hidden="true"></div>
+          <div class="masthead-title-row">
+            <h1>Search The Archive</h1>
+          </div>
         </div>
         <img class="masthead-mark" src="../imgs/phoenix_trace.png" alt="Phoenix mascot" />
       </header>
+      <div class="masthead-subrow">
+        <button id="random-issue-button" class="random-issue-link" type="button">
+          Explore a random issue!
+        </button>
+      </div>
 
       <main class="layout">
         <section class="results-panel">
@@ -63,9 +69,14 @@
               <h2 id="viewer-title">No document selected</h2>
               <p id="viewer-subtitle" class="viewer-subtitle">Select a result to load the issue inline.</p>
             </div>
-            <a id="open-pdf-link" class="viewer-link" href="#" target="_blank" rel="noreferrer">
-              Open In New Tab
-            </a>
+            <div class="viewer-actions">
+              <button id="toggle-viewer-button" class="viewer-mode-button" type="button">
+                Expand PDF
+              </button>
+              <a id="open-pdf-link" class="viewer-link" href="#" target="_blank" rel="noreferrer">
+                Open In New Tab
+              </a>
+            </div>
           </div>
 
           <!--

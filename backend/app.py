@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 try:
-    from .db import PROJECT_ROOT, fetch_document
+    from .db import PROJECT_ROOT, fetch_document, fetch_random_document
     from .schemas import SearchResponse
     from .search import search
 except ImportError:
-    from db import PROJECT_ROOT, fetch_document
+    from db import PROJECT_ROOT, fetch_document, fetch_random_document
     from schemas import SearchResponse
     from search import search
 
@@ -104,6 +104,17 @@ def document_endpoint(doc_id: str) -> dict:
     return dict(row)
 
 
+@app.get("/random-document")
+def random_document_endpoint() -> dict:
+    """
+    Return one random issue so the frontend can support exploratory browsing.
+    """
+    row = fetch_random_document()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No documents available")
+    return dict(row)
+
+
 @app.get("/pdf/{doc_id}")
 def pdf_endpoint(doc_id: str):
     """
@@ -132,5 +143,5 @@ def root() -> dict:
     return {
         "message": "Maroon Archive Search API",
         "project_root": str(PROJECT_ROOT),
-        "routes": ["/health", "/search", "/document/{doc_id}", "/pdf/{doc_id}"],
+        "routes": ["/health", "/search", "/document/{doc_id}", "/random-document", "/pdf/{doc_id}"],
     }

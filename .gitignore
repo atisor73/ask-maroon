@@ -1,5 +1,5 @@
 output/*
 output-backup/*
 *.pdf
-*.txt
+output/*.txt
 .env

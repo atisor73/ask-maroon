@@ -38,6 +38,23 @@ def fetch_document(doc_id: str) -> Optional[sqlite3.Row]:
         conn.close()
 
 
+def fetch_random_document() -> Optional[sqlite3.Row]:
+    conn = get_archive_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT doc_id, year, date, title, pdf_path, text_path, source_url, pdf_url, plain_text_url
+            FROM documents
+            WHERE pdf_path IS NOT NULL
+              AND pdf_path != ''
+            ORDER BY RANDOM()
+            LIMIT 1
+            """
+        ).fetchone()
+    finally:
+        conn.close()
+
+
 def fetch_documents(doc_ids: Iterable[str]) -> List[sqlite3.Row]:
     doc_ids = list(doc_ids)
     if not doc_ids:

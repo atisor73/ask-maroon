@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+tqdm
+openai
+numpy
+python-dotenv
+wordsegment
+pypdf
