@@ -49,6 +49,8 @@ def search_fts(query: str, limit: int = 10) -> List[dict]:
                 c.chunk_index,
                 c.year,
                 c.date,
+                c.page_number,
+                c.page_match_score,
                 c.source_text_path,
                 c.text,
                 c.word_count,

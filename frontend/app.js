@@ -15,6 +15,7 @@ const randomIssueButton = document.querySelector("#random-issue-button");
 
 let selectedCard = null;
 let selectedDocId = null;
+let selectedPageNumber = null;
 let viewerExpanded = false;
 
 function setStatus(message) {
@@ -44,6 +45,14 @@ function ensureViewerExpanded() {
   }
 }
 
+function preferredPage(documentResult) {
+  const bestChunk =
+    documentResult.chunks.find((chunk) => chunk.chunk_id === documentResult.best_chunk_id) ||
+    documentResult.chunks[0];
+
+  return bestChunk?.page_number || null;
+}
+
 function buildResultCard(documentResult) {
   const article = document.createElement("article");
   article.className = "result-card";
@@ -57,9 +66,10 @@ function buildResultCard(documentResult) {
   const date = documentResult.date || "Unknown date";
   const snippetHtml = bestChunk?.snippet_html || escapeHtml(bestChunk?.snippet || "");
   const fullTextHtml = escapeHtml(bestChunk?.text || "");
+  const pageLabel = bestChunk?.page_number ? ` • p. ${bestChunk.page_number}` : "";
 
   article.innerHTML = `
-    <p class="result-kicker">${date} • ${documentResult.doc_id}</p>
+    <p class="result-kicker">${date} • ${documentResult.doc_id}${pageLabel}</p>
     <h3>${escapeHtml(title)}</h3>
     <div class="result-snippet-wrap">
       <p class="result-snippet">${snippetHtml}</p>
@@ -105,16 +115,22 @@ function buildResultCard(documentResult) {
 }
 
 function openPdf(documentResult) {
-  if (selectedDocId === documentResult.doc_id) {
+  const pageNumber = preferredPage(documentResult);
+
+  if (selectedDocId === documentResult.doc_id && selectedPageNumber === pageNumber) {
     return;
   }
 
   // For now we open the issue PDF inline in the right-hand frame.
-  // The backend route now serves it with Content-Disposition: inline.
-  const pdfUrl = `${API_BASE_URL}/pdf/${encodeURIComponent(documentResult.doc_id)}`;
+  // The browser PDF viewer often honors #page=N, so we append it when we have one.
+  const basePdfUrl = `${API_BASE_URL}/pdf/${encodeURIComponent(documentResult.doc_id)}`;
+  const pdfUrl = pageNumber ? `${basePdfUrl}#page=${pageNumber}` : basePdfUrl;
   selectedDocId = documentResult.doc_id;
+  selectedPageNumber = pageNumber;
   viewerTitle.textContent = documentResult.title || documentResult.doc_id;
-  viewerSubtitle.textContent = `${documentResult.date || "Unknown date"} • ${documentResult.doc_id}`;
+  viewerSubtitle.textContent = pageNumber
+    ? `${documentResult.date || "Unknown date"} • ${documentResult.doc_id} • Page ${pageNumber}`
+    : `${documentResult.date || "Unknown date"} • ${documentResult.doc_id}`;
   openPdfLink.href = pdfUrl;
   pdfFrame.src = pdfUrl;
 }
@@ -142,6 +158,8 @@ async function openRandomIssue() {
 
     const documentResult = await response.json();
     setSelectedCard(null);
+    selectedDocId = null;
+    selectedPageNumber = null;
     ensureViewerExpanded();
     openPdf(documentResult);
     setStatus(
@@ -179,6 +197,7 @@ async function runSearch(event) {
     const data = await response.json();
     resultsList.innerHTML = "";
     selectedDocId = null;
+    selectedPageNumber = null;
 
     if (!data.document_results.length) {
       renderEmptyState(`No results found for "${query}".`);

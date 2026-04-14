@@ -89,7 +89,17 @@ def _fetch_chunks_by_ids(chunk_ids: List[str]) -> Dict[str, dict]:
     try:
         rows = conn.execute(
             f"""
-            SELECT chunk_id, doc_id, chunk_index, year, date, source_text_path, text, word_count
+            SELECT
+                chunk_id,
+                doc_id,
+                chunk_index,
+                year,
+                date,
+                page_number,
+                page_match_score,
+                source_text_path,
+                text,
+                word_count
             FROM chunks
             WHERE chunk_id IN ({placeholders})
             """,

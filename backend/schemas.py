@@ -10,6 +10,8 @@ class ChunkResult(BaseModel):
     chunk_index: int
     year: Optional[str] = None
     date: Optional[str] = None
+    page_number: Optional[int] = None
+    page_match_score: Optional[float] = None
     source_text_path: Optional[str] = None
     text: str
     snippet: str
