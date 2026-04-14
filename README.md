@@ -67,6 +67,7 @@ Backend docs: http://127.0.0.1:8000/docs
 
 # test queries
 crimes related to bikes cycling cyclists bicycles
+articles related to haircuts, hairstyles, hair
 
 
 # GPT recommendations: 

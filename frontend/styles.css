@@ -101,7 +101,6 @@ body {
 }
 
 .search-card,
-.status-card,
 .result-card,
 .viewer-panel {
   /* background: rgba(248, 245, 239, 0.94); */
@@ -111,14 +110,23 @@ body {
   box-shadow: var(--shadow);
 }
 
-.search-card,
-.status-card {
+.search-card {
   padding: 18px;
   margin-bottom: 16px;
 }
 
-#status-text{
-  font-size:10pt;
+.status-card {
+  margin: 4px 0 14px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+#status-text {
+  margin: 0;
+  font-size: 10pt;
+  color: var(--muted);
 }
 
 .field {
@@ -179,7 +187,7 @@ body {
   background: var(--maroon);
   color: white;
   padding: 12px 18px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   cursor: pointer;
   font-family: var(--mono);
   letter-spacing: 0.02em;
@@ -203,14 +211,22 @@ body {
   padding: 18px;
 }
 
+.result-card.is-selected {
+  border-color: var(--maroon);
+  box-shadow:
+    0 0 0 1px rgba(109, 16, 34, 0.18),
+    var(--shadow);
+}
+
 .result-card h3 {
   margin: 0 0 8px;
-  font-size: 1.22rem;
+  font-size: 1.2rem;
   line-height: 1.25;
 }
 
 .result-card p {
   margin: 0;
+  font-size:0.9rem;
 }
 
 .result-kicker {
@@ -239,7 +255,7 @@ body {
   gap: 12px;
   margin-top: 14px;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.8rem;
   font-family: var(--mono);
 }
 
@@ -247,6 +263,9 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: sticky;
+  top: 24px;
+  align-self: start;
   background:
     /* linear-gradient(180deg, rgba(248, 245, 239, 0.98) 0%, rgba(242, 236, 229, 0.98) 100%); */
     linear-gradient(180deg, rgba(223, 218, 218, 0.98) 0%, rgba(212, 205, 204, 0.98) 100%);
@@ -276,7 +295,7 @@ body {
 
 .pdf-frame {
   width: 100%;
-  min-height: 185vh;
+  min-height: max(185vh, calc(100vh - 140px));
   border: 0;
   margin-top: 18px;
   background: rgba(238, 233, 233);

@@ -11,6 +11,8 @@ const viewerSubtitle = document.querySelector("#viewer-subtitle");
 const openPdfLink = document.querySelector("#open-pdf-link");
 const pdfFrame = document.querySelector("#pdf-frame");
 
+let selectedCard = null;
+
 function setStatus(message) {
   statusText.textContent = message;
 }
@@ -52,7 +54,16 @@ function buildResultCard(documentResult) {
   `;
 
   const button = article.querySelector("button");
-  button.addEventListener("click", () => openPdf(documentResult));
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setSelectedCard(article);
+    openPdf(documentResult);
+  });
+
+  article.addEventListener("click", () => {
+    setSelectedCard(article);
+    openPdf(documentResult);
+  });
 
   return article;
 }
@@ -65,6 +76,18 @@ function openPdf(documentResult) {
   viewerSubtitle.textContent = `${documentResult.date || "Unknown date"} • ${documentResult.doc_id}`;
   openPdfLink.href = pdfUrl;
   pdfFrame.src = pdfUrl;
+}
+
+function setSelectedCard(cardElement) {
+  if (selectedCard) {
+    selectedCard.classList.remove("is-selected");
+  }
+
+  selectedCard = cardElement;
+
+  if (selectedCard) {
+    selectedCard.classList.add("is-selected");
+  }
 }
 
 async function runSearch(event) {
@@ -116,6 +139,7 @@ async function runSearch(event) {
 
       // Auto-open the top result so the PDF pane is not empty after a search.
       if (index === 0) {
+        setSelectedCard(card);
         openPdf(documentResult);
       }
     });
