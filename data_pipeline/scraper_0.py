@@ -1,3 +1,4 @@
+import os  # you're using it but didn't import it yet
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -25,7 +26,7 @@ def get_doc_links_from_page(url):
     html = fetch_with_retries(url)
     
     if html is None:
-        return None  # signal failure
+        return None, None  # signal failure
     
     soup = BeautifulSoup(html, "html.parser")
     
@@ -35,8 +36,9 @@ def get_doc_links_from_page(url):
         if a_tag:
             full_url = urljoin(BASE, a_tag["href"])
             links.append(full_url)
-    
-    return links
+
+
+    return links, html
 
 
 # Exponential backoff
@@ -56,6 +58,8 @@ def fetch_with_retries(url, max_retries=5, base_delay=1):
 
 
 def save_progress(all_links, failed_pages):
+    os.makedirs("output", exist_ok=True)
+    
     with open("output/links.json", "w") as f:
         json.dump(list(set(all_links)), f)
     
@@ -65,11 +69,20 @@ def save_progress(all_links, failed_pages):
 
 
 if __name__ == '__main__':
+    # calls time.sleep(0.5) between requests
+    BE_POLITE = True
+
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (compatible; ArchiveBot/1.0)"
+    }
+    
+    session = requests.Session()
+    session.headers.update(HEADERS)
     
     # *************************************************************** SETUP
     # --------- Retrieve iFrame URL --------- 
     url = "https://chicagomaroon.com/archive/"
-    html = requests.get(url).text
+    html = session.get(url).text
     
     soup = BeautifulSoup(html, "html.parser")
     
@@ -107,10 +120,7 @@ if __name__ == '__main__':
     # --------- Compile urls of all pages for pagination ---------
     html = requests.get("https://campub.lib.uchicago.edu/search/?f1-title=Daily+Maroon").text
     pages = get_pagination_links(html)
-    
-    # for p in pages:
-        # print(p)
-    
+
     pages = sorted(
         pages,
         key=lambda p: int(p[p.rfind('=')+1:])
@@ -123,27 +133,33 @@ if __name__ == '__main__':
     # *************************************************************** CRAWLER
     # --------- Try all links, create queue with failed pages ---------
     failed_pages = []
-    
-    for i, page_url in enumerate(tqdm.tqdm(pages)):
-        links = get_doc_links_from_page(page_url)
+
+    try: 
+        for i, page_url in enumerate(tqdm.tqdm(pages)):
+            links, html = get_doc_links_from_page(page_url)
+            
+            if links is None:
+                failed_pages.append(page_url)
+                continue
+            
+            if not links:
+                print(f"Empty page (likely failure): {page_url}")
+                failed_pages.append(page_url)
+                print("HTML preview:", html[:500])
+                continue
+            
+            all_links.extend(links)
+            all_links = list(set(all_links))
         
-        if links is None:
-            failed_pages.append(page_url)
-            continue
-        
-        if not links:
-            print(f"Empty page (likely failure): {page_url}")
-            failed_pages.append(page_url)
-            print("HTML preview:", html[:500])
-            continue
-        
-        all_links.extend(links)
-    
-        if i % 10 == 0:
-            save_progress(all_links, failed_pages)
-        
-        if BE_POLITE:
-            time.sleep(0.5)
+            if i % 10 == 0:
+                save_progress(all_links, failed_pages)
+            
+            if BE_POLITE:
+                time.sleep(random.uniform(0.3, 1.0))
+
+    except KeyboardInterrupt:
+        print("Interrupted! Saving progress...")
+        save_progress(all_links, failed_pages)
 
     
     # (Below is un-tested bc the above code has just worked!)
@@ -155,8 +171,8 @@ if __name__ == '__main__':
         
         new_failed = []
         
-        for page_url in tqdm(failed_pages):
-            links = get_doc_links_from_page(page_url)
+        for page_url in tqdm.tqdm(failed_pages):
+            links, html = get_doc_links_from_page(page_url)
             
             if links is None:
                 new_failed.append(page_url)

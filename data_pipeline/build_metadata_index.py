@@ -1,0 +1,185 @@
+import json
+import sqlite3
+from pathlib import Path
+from typing import Dict, Iterable, Optional
+
+
+ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = ROOT / "output"
+PDF_DIR = OUTPUT_DIR / "pdfs"
+TEXT_DIR = OUTPUT_DIR / "plain_text"
+DOCUMENTS_JSON = OUTPUT_DIR / "documents.json"
+METADATA_DIR = OUTPUT_DIR / "metadata"
+DB_PATH = METADATA_DIR / "archive.db"
+PARQUET_PATH = METADATA_DIR / "docs.parquet"
+
+
+def load_documents_json(path: Path) -> Dict[str, dict]:
+    if not path.exists():
+        return {}
+
+    records = json.loads(path.read_text(encoding="utf-8"))
+    by_id = {}
+    for record in records:
+        doc_id = record.get("id")
+        if doc_id:
+            by_id[doc_id] = record
+    return by_id
+
+
+def iter_pdf_files(root: Path) -> Iterable[Path]:
+    if not root.exists():
+        return []
+    return sorted(
+        path
+        for path in root.rglob("*.pdf")
+        if ".ipynb_checkpoints" not in path.parts and not path.name.endswith("-checkpoint.pdf")
+    )
+
+
+def extract_doc_id(pdf_path: Path) -> str:
+    return pdf_path.stem
+
+
+def infer_text_path(pdf_path: Path) -> Path:
+    relative = pdf_path.relative_to(PDF_DIR)
+    return TEXT_DIR / relative.with_suffix(".txt")
+
+
+def infer_date_from_doc_id(doc_id: str) -> Optional[str]:
+    parts = doc_id.split("-")
+    if len(parts) < 4:
+        return None
+
+    year = parts[-2]
+    month_day = parts[-1]
+    if len(year) == 4 and len(month_day) == 4:
+        return f"{year}-{month_day[:2]}-{month_day[2:]}"
+    return None
+
+
+def count_pdf_pages(pdf_path: Path) -> Optional[int]:
+    try:
+        from pypdf import PdfReader  # type: ignore
+
+        return len(PdfReader(str(pdf_path)).pages)
+    except Exception:
+        pass
+
+    try:
+        from PyPDF2 import PdfReader  # type: ignore
+
+        return len(PdfReader(str(pdf_path)).pages)
+    except Exception:
+        return None
+
+
+def detect_ocr_status(text_path: Path, text_length: int) -> str:
+    if not text_path.exists():
+        return "missing_text"
+    if text_length == 0:
+        return "empty_text"
+    return "text_present"
+
+
+def build_document_row(pdf_path: Path, docs_by_id: Dict[str, dict]) -> dict:
+    doc_id = extract_doc_id(pdf_path)
+    source = docs_by_id.get(doc_id, {})
+    text_path = infer_text_path(pdf_path)
+
+    date = source.get("date") or infer_date_from_doc_id(doc_id)
+    year = source.get("year") or (date[:4] if date else None)
+    text_length = 0
+    if text_path.exists():
+        text_length = len(text_path.read_text(encoding="utf-8", errors="ignore"))
+
+    return {
+        "doc_id": doc_id,
+        "year": year,
+        "date": date,
+        "title": source.get("title"),
+        "pdf_path": str(pdf_path),
+        "text_path": str(text_path) if text_path.exists() else None,
+        "source_url": source.get("doc_url"),
+        "pdf_url": source.get("pdf_url"),
+        "plain_text_url": source.get("plain_text_url"),
+        "page_count": count_pdf_pages(pdf_path),
+        "ocr_status": detect_ocr_status(text_path, text_length),
+        "text_length": text_length,
+    }
+
+
+def init_db(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+            doc_id TEXT PRIMARY KEY,
+            year TEXT,
+            date TEXT,
+            title TEXT,
+            pdf_path TEXT NOT NULL,
+            text_path TEXT,
+            source_url TEXT,
+            pdf_url TEXT,
+            plain_text_url TEXT,
+            page_count INTEGER,
+            ocr_status TEXT,
+            text_length INTEGER
+        )
+        """
+    )
+    conn.execute("DELETE FROM documents")
+
+
+def insert_rows(conn: sqlite3.Connection, rows: Iterable[dict]) -> None:
+    conn.executemany(
+        """
+        INSERT INTO documents (
+            doc_id, year, date, title, pdf_path, text_path, source_url,
+            pdf_url, plain_text_url, page_count, ocr_status, text_length
+        ) VALUES (
+            :doc_id, :year, :date, :title, :pdf_path, :text_path, :source_url,
+            :pdf_url, :plain_text_url, :page_count, :ocr_status, :text_length
+        )
+        """,
+        rows,
+    )
+    conn.commit()
+
+
+def export_parquet(rows: list[dict], path: Path) -> None:
+    try:
+        import pandas as pd  # type: ignore
+    except Exception:
+        print("Skipping parquet export: pandas is not installed.")
+        return
+
+    try:
+        df = pd.DataFrame(rows)
+        df.to_parquet(path, index=False)
+    except Exception as exc:
+        print(f"Skipping parquet export: {exc}")
+
+
+def main() -> None:
+    METADATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    docs_by_id = load_documents_json(DOCUMENTS_JSON)
+    pdf_files = list(iter_pdf_files(PDF_DIR))
+    rows = [build_document_row(pdf_path, docs_by_id) for pdf_path in pdf_files]
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        init_db(conn)
+        insert_rows(conn, rows)
+    finally:
+        conn.close()
+
+    export_parquet(rows, PARQUET_PATH)
+
+    print(f"Indexed {len(rows)} documents into {DB_PATH}")
+    print(f"Parquet target: {PARQUET_PATH}")
+
+
+if __name__ == "__main__":
+    main()

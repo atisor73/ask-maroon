@@ -19,7 +19,7 @@ def parse_date_from_doc_id(doc_id):
         
         return date, year, month, day
     except Exception:
-        return None
+        return None, None, None, None
 
 def build_doc_record(doc_url):
     doc_id = extract_doc_id(doc_url)
@@ -57,3 +57,5 @@ if __name__ == '__main__':
     
     with open("output/documents.json", "w") as f:
         json.dump(docs, f, indent=2)
+
+        

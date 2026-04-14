@@ -14,6 +14,25 @@
 - converts all pdfs to txt/json? best format for llm?
 - how to deal with columnar formatting?
 
+`clean_text.py`
+- output/plain_text_cleaned/
+
+`build_metadata_index.py`
+- metadata/archive.db
+- metadata/docs.parquet
+
+`chunk_text.py`
+- metadata/chunks.db
+
+`embed_text.py`
+- embeddings_sentencetransformers/
+- embeddings_openai/
+
+python3 embed_text.py --backend sentence-transformers
+python3 embed_text.py --backend openai
+python3 embed_text.py --backend both
+python3 embed_text.py --backend both --limit 200
+
 GPT recommendations: 
 Layer 1 — Storage
 	•	Files (PDF + text)
@@ -49,3 +68,29 @@ Process:
 	2.	Compute embeddings
 	3.	Store in vector DB 
 
+
+
+
+
+
+
+
+
+
+==================
+1. Chunks vs SQLite Location
+
+Option A: Local SQLite
+	•	Pros: Easy, fast, no cloud cost, full control.
+	•	Cons: Not inherently distributed; limited by local machine storage if dataset is huge.
+	•	Use case: If you have, say, tens of thousands of PDF pages (or text files), local SQLite is perfect.
+
+Option B: Cloud SQLite
+	•	Usually, people don’t “upload SQLite” to a cloud service directly. Instead:
+	1.	You preprocess and chunk locally.
+	2.	Either upload the database file to cloud storage (S3, GDrive) or
+	3.	Use a cloud vector database (like Weaviate, Pinecone, or Supabase + pgvector) if you want embeddings searchable in the cloud.
+
+Rule of thumb:
+	•	Small to medium datasets → local SQLite + optional FAISS embeddings.
+	•	Big datasets or multi-user access → cloud vector database.

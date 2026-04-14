@@ -109,16 +109,16 @@ def process_doc(doc):
 
 
 
-
 if __name__ == '__main__':
+    
     with open("output/documents.json") as f:
         docs = json.load(f)
     
     PDF_DIR = "output/pdfs"
     TEXT_DIR = "output/plain_text"
-
+    os.makedirs(PDF_DIR, exist_ok=True)
+    os.makedirs(TEXT_DIR, exist_ok=True)
     
-    failed = []
     
     # .........  This quickly checks for whether or not you've already downloaded a 
     # specific issue by checking whether or not the pdf/text filepath exists, in 
