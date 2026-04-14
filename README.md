@@ -1,4 +1,4 @@
-<img src="demo.png" width="80%">
+<img src="demo.png" width="100%">
 
 # data_pipeline/
 
