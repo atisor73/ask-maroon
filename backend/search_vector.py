@@ -4,7 +4,10 @@ from typing import Dict, List
 
 import numpy as np
 
-from db import OUTPUT_DIR, get_chunks_connection
+try:
+    from .db import OUTPUT_DIR, get_chunks_connection
+except ImportError:
+    from db import OUTPUT_DIR, get_chunks_connection
 
 # Change directory to change model
 SENTENCE_TRANSFORMERS_DIR = OUTPUT_DIR / "embeddings_sentencetransformers"

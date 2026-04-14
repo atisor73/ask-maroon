@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maroon Archive Search</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="masthead">
+          <p class="eyebrow">Chicago Maroon Archive</p>
+          <h1>Search The Archive</h1>
+          <div class="title-rule" aria-hidden="true"></div>
+        </div>
+        <img class="masthead-mark" src="../phoenix_trace.png" alt="Phoenix mascot" />
+      </header>
+
+      <main class="layout">
+        <section class="results-panel">
+          <form id="search-form" class="search-card">
+            <label class="field">
+              <span>Query</span>
+              <input
+                id="query-input"
+                name="query"
+                type="text"
+                placeholder="Try: student protests on campus"
+                required
+              />
+            </label>
+
+            <div class="controls-row">
+              <label class="field compact-field">
+                <span>Vector backend</span>
+                <select id="backend-select" name="backend">
+                  <option value="sentence-transformers">sentence-transformers</option>
+                  <option value="openai">openai</option>
+                </select>
+              </label>
+
+              <label class="field compact-field">
+                <span>Results</span>
+                <input id="limit-input" name="limit" type="number" value="8" min="1" max="20" />
+              </label>
+
+              <button class="search-button" type="submit">Search</button>
+            </div>
+          </form>
+
+          <section class="status-card" id="status-card">
+            <p id="status-text">Run query, see ranked text chunk results here.</p>
+          </section>
+
+          <section class="results-list" id="results-list"></section>
+        </section>
+
+        <aside class="viewer-panel">
+          <div class="viewer-header">
+            <div>
+              <p class="eyebrow">Original PDF</p>
+              <h2 id="viewer-title">No document selected</h2>
+              <p id="viewer-subtitle" class="viewer-subtitle">Select a result to load the issue inline.</p>
+            </div>
+            <a id="open-pdf-link" class="viewer-link" href="#" target="_blank" rel="noreferrer">
+              Open In New Tab
+            </a>
+          </div>
+
+          <!--
+            The iframe gives us a quick MVP viewer.
+            Later we can swap this for PDF.js and support page-level jumps/highlighting.
+          -->
+          <iframe
+            id="pdf-frame"
+            class="pdf-frame"
+            title="Archive PDF Viewer"
+            src="about:blank"
+          ></iframe>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

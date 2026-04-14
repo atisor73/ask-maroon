@@ -1,4 +1,6 @@
-`run.sh` runs `scraper_0.py`, `scraper_1.py`, `scraper_2.py`
+# data_pipeline/
+
+`run.sh` runs files sequentially
 
 `scraper_0.py`
 - output/links.json: document links 
@@ -27,55 +29,47 @@
 `embed_text.py`
 - embeddings_sentencetransformers/
 - embeddings_openai/
-
+```
 python3 embed_text.py --backend sentence-transformers
 python3 embed_text.py --backend openai
 python3 embed_text.py --backend both
 python3 embed_text.py --backend both --limit 200
+```
 
-GPT recommendations: 
-Layer 1 — Storage
-	•	Files (PDF + text)
-	•	Your current structure is good
-
-Layer 2 — Index
-	•	Metadata table (SQLite / parquet)
-
-Layer 3 — Retrieval
-	•	Chunked text + embeddings
-
-Layer 4 — LLM interface
-	•	Only sees small, relevant slices
-
-(A) metadata index: docs.parquet  # or sqlite.db
-(B) clean text extraction: 	•	Ensure consistent .txt quality
-(C) Later: chunk + embed
+### To-do's: fix / adjust PDF ocr to locate blocks within pdf?
 
 
-LLM/RAG is good at retrieving small batches of files (must fit in context length window)
+# backend/
+Testing query:
+- test_backend.ipynb contains code that runs a query, calling search_fts.py and search_vector.py functions
 
-Option i:  Full-text search index - SQLite FTS5
-	•	Whoosh
-	•	Elasticsearch (heavier)
-This is good for searching across entire archive for specific keywords.
 
-Option ii: Embeddings (semantic search)
-
-Now we get closer to your LLM idea—but cheaper and better.
-
-Process:
-	1.	Chunk all documents
-	2.	Compute embeddings
-	3.	Store in vector DB 
+Testing API:
+```
+uvicorn backend.app:app --reload
+http://127.0.0.1:8000/health
+http://127.0.0.1:8000/search?q=student%20protests&backend=openai
+http://127.0.0.1:8000/search?q=student%20protests&backend=sentence-transformers
+```
 
 
 
 
 
+# frontend/
+Start backend: `uvicorn backend.app:app --reload`
+Serve frontend: `python3 -m http.server 3000`
+
+Navigate: http://127.0.0.1:3000/frontend/
+Backend docs: http://127.0.0.1:8000/docs
 
 
 
+# test queries
+crimes related to bikes cycling cyclists bicycles
 
+
+# GPT recommendations: 
 
 ==================
 1. Chunks vs SQLite Location
@@ -94,3 +88,15 @@ Option B: Cloud SQLite
 Rule of thumb:
 	•	Small to medium datasets → local SQLite + optional FAISS embeddings.
 	•	Big datasets or multi-user access → cloud vector database.
+
+
+Keep current retrieval pipeline
+OCR text
+chunks
+embeddings
+search UI
+
+Add page mapping next
+per-page text extraction
+fuzzy match chunk to page
+open PDF to that page
