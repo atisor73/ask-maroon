@@ -17,8 +17,6 @@ We are working to integrate image embeddings and other new features.
 
 # To-do's
 
-- D. some fun animation while search is loading (phoenix flying?)
-
 - B1. Add info button explaining UI, randomize button, modeling, link to github/issues. FAQ section?
 	- highlighting
 	- It is really saying:
@@ -29,29 +27,21 @@ We are working to integrate image embeddings and other new features.
 
 		So could that be misleading?
 		A little, yes, if it’s presented too strongly.
+		- also note that animation while search is loading is currently on a fake timer as  otherwise we'd have to stream the backend as it's running
 	
 - B2. Add better documentation to each individual file as to what it is doing methodologically and how it is doing it (it will force you to do your own code review)
 
-- E1. Query Expansion: LLM (see below in E2 for details):
+
+
+
+- E. Search for 'typical set': Toggle btw Greedy search vs. Serendipitous search.? or 
+  - Query Expansion: LLM (see below in E2 for details):
 	- use a local LLM to rewrite a query into:	related entities, alternate phrasings,narrower/broader subqueries
 	- free in licensing/runtime terms if you run locally, but not free in compute/time
 	- 
-- E2. Search for 'typical set': Toggle btw Greedy search vs. Serendipitous search.?
-  - one methodological shift can be to wrap the query in an LLM that generates a more targeted response
+  - another methodological shift can be to wrap the query in an LLM that generates a more targeted response
   - for example, if I am looking for russian authors, currently the embedding will literally just embed "russian authors" as a vector instead of doing what a NTP LLM would do (I think?) which is generate other subqueries
   - optionally ask an LLM to generate a few related entity-rich subqueries, run retrieval on all of them, merge results
-  - Button for 'serendipity' and information button (subqueries)
-  - There are a few variants:
-		top-k random:
-		retrieve top 100
-		sample uniformly from those 100
-		weighted random:
-		retrieve top 100
-		sample with probability proportional to score
-		top-p style:
-		sort by score
-		keep enough results to cover some cumulative score mass
-		sample from that set
 
 
 - Z. figure out production/deployment & make budget proposal 

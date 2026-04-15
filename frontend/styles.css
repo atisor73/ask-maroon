@@ -172,6 +172,10 @@ body {
   color: var(--muted);
 }
 
+#status-text.is-loading {
+  color: var(--maroon);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -522,13 +526,13 @@ body {
 }
 
 .controls-row .compact-field:first-child {
-  min-width: 210px;
-  flex: 0 0 210px;
+  min-width: 214px;
+  flex: 0 0 214px;
 }
 
 .controls-row .compact-field:nth-child(2) {
-  min-width: 92px;
-  flex: 0 0 92px;
+  min-width: 88px;
+  flex: 0 0 88px;
 }
 
 #backend-select,

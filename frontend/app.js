@@ -39,7 +39,17 @@ let currentPage = 1;
 let availableYearRange = null;
 let currentVectorBackend = null;
 let currentUsedFallback = false;
+let loadingStatusTimer = null;
+let loadingStatusStageIndex = 0;
+let loadingStatusDotTick = 0;
 const RESULTS_PER_PAGE = 10;
+const LOADING_STATUS_INTERVAL_MS = 500;
+const SEARCH_LOADING_STAGES = [
+  "Embedding query",
+  "Searching archive",
+  "Ranking results",
+];
+const SEARCH_LOADING_STAGE_DOT_COUNTS = [6, 2, Infinity];
 
 function selectedSearchMode() {
   const checked = document.querySelector('input[name="search-mode"]:checked');
@@ -57,7 +67,40 @@ function updateSamplingControls() {
 }
 
 function setStatus(message) {
+  stopLoadingStatus();
   statusText.textContent = message;
+  statusText.classList.remove("is-loading");
+}
+
+function renderLoadingStatusFrame() {
+  const dots = ".".repeat((loadingStatusDotTick % 3) + 1);
+  statusText.textContent = `${SEARCH_LOADING_STAGES[loadingStatusStageIndex]}${dots}`;
+}
+
+function startLoadingStatus() {
+  stopLoadingStatus();
+  loadingStatusStageIndex = 0;
+  loadingStatusDotTick = 0;
+  statusText.classList.add("is-loading");
+  renderLoadingStatusFrame();
+  loadingStatusTimer = window.setInterval(() => {
+    loadingStatusDotTick += 1;
+    if (
+      loadingStatusDotTick >= SEARCH_LOADING_STAGE_DOT_COUNTS[loadingStatusStageIndex] &&
+      loadingStatusStageIndex < SEARCH_LOADING_STAGES.length - 1
+    ) {
+      loadingStatusStageIndex += 1;
+      loadingStatusDotTick = 0;
+    }
+    renderLoadingStatusFrame();
+  }, LOADING_STATUS_INTERVAL_MS);
+}
+
+function stopLoadingStatus() {
+  if (loadingStatusTimer !== null) {
+    window.clearInterval(loadingStatusTimer);
+    loadingStatusTimer = null;
+  }
 }
 
 function escapeHtml(text) {
@@ -468,7 +511,7 @@ async function runSearch(event) {
     params.set("end_year", endYearInput.value);
   }
 
-  setStatus(`Searching for "${query}"...`);
+  startLoadingStatus();
   resultsList.innerHTML = "";
 
   try {

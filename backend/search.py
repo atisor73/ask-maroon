@@ -229,8 +229,10 @@ def _build_snippet(text: str, query: str, snippet_length: int = SNIPPET_LENGTH) 
     Create a short preview snippet and HTML-highlighted version.
 
     Strategy:
-    - Try to center the snippet around the first literal query-term match.
-    - If no literal term exists, fall back to the start of the chunk.
+    - Prefer the strongest semantic focus phrase when available so previews
+      surface the yellow-highlighted passage.
+    - Otherwise center on the first literal query-term match.
+    - If neither exists, fall back to the start of the chunk.
     - Return both plain text and simple <mark>-wrapped HTML.
     """
     clean_text = re.sub(r"\s+", " ", text).strip()
@@ -240,13 +242,15 @@ def _build_snippet(text: str, query: str, snippet_length: int = SNIPPET_LENGTH) 
     terms = _query_terms(query)
     focus_phrases = _best_focus_phrases(clean_text, query, max_phrases=1)
     match = None
-    for term in terms:
-        match = re.search(re.escape(term), clean_text, flags=re.IGNORECASE)
-        if match:
-            break
 
-    if match is None and focus_phrases:
+    if focus_phrases:
         match = re.search(re.escape(focus_phrases[0]), clean_text, flags=re.IGNORECASE)
+
+    if match is None:
+        for term in terms:
+            match = re.search(re.escape(term), clean_text, flags=re.IGNORECASE)
+            if match:
+                break
 
     if match:
         center = (match.start() + match.end()) // 2
