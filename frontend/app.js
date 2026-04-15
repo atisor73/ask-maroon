@@ -4,6 +4,14 @@ const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
 const backendSelect = document.querySelector("#backend-select");
 const limitInput = document.querySelector("#limit-input");
+const yearFilterCard = document.querySelector("#year-filter-card");
+const startYearInput = document.querySelector("#start-year-input");
+const endYearInput = document.querySelector("#end-year-input");
+const startYearValue = document.querySelector("#start-year-value");
+const endYearValue = document.querySelector("#end-year-value");
+const yearDecadeTicks = document.querySelector("#year-decade-ticks");
+const yearTickMarks = document.querySelector("#year-tick-marks");
+const yearDualSlider = document.querySelector(".year-dual-slider");
 const resultsList = document.querySelector("#results-list");
 const statusText = document.querySelector("#status-text");
 const paginationBar = document.querySelector("#pagination-bar");
@@ -24,6 +32,7 @@ let selectedPageNumber = null;
 let viewerExpanded = false;
 let currentResults = [];
 let currentPage = 1;
+let availableYearRange = null;
 const RESULTS_PER_PAGE = 10;
 
 function setStatus(message) {
@@ -47,6 +56,162 @@ function renderEmptyState(message) {
 function updateViewerMode() {
   document.body.classList.toggle("pdf-focus-mode", viewerExpanded);
   toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF-Viewer" : "Expand PDF-Viewer";
+}
+
+function buildDecadeTicks(minYear, maxYear) {
+  yearDecadeTicks.innerHTML = "";
+  yearTickMarks.innerHTML = "";
+  const span = maxYear - minYear || 1;
+  const tickYears = new Set([minYear, maxYear]);
+  const firstTick = Math.ceil(minYear / 10) * 10;
+  for (let year = firstTick; year <= maxYear; year += 10) {
+    tickYears.add(year);
+  }
+
+  [...tickYears]
+    .sort((left, right) => left - right)
+    .forEach((year) => {
+      const option = document.createElement("option");
+      option.value = String(year);
+      option.label = String(year);
+      yearDecadeTicks.appendChild(option);
+
+      const tick = document.createElement("span");
+      tick.className = "year-tick-mark";
+      tick.style.left = `${((year - minYear) / span) * 100}%`;
+      tick.title = String(year);
+      yearTickMarks.appendChild(tick);
+
+      const label = document.createElement("span");
+      label.className = "year-tick-label";
+      label.style.left = `${((year - minYear) / span) * 100}%`;
+      if (year === minYear || year === maxYear) {
+        label.textContent = `'${String(year).slice(-2)}`;
+      } else {
+        label.textContent = String(year);
+      }
+      yearTickMarks.appendChild(label);
+    });
+}
+
+function updateYearTrack() {
+  if (!availableYearRange) {
+    return;
+  }
+
+  const span = availableYearRange.max_year - availableYearRange.min_year || 1;
+  const startPercent =
+    ((Number(startYearInput.value) - availableYearRange.min_year) / span) * 100;
+  const endPercent =
+    ((Number(endYearInput.value) - availableYearRange.min_year) / span) * 100;
+
+  yearDualSlider.style.setProperty("--range-start", `${startPercent}%`);
+  yearDualSlider.style.setProperty("--range-end", `${endPercent}%`);
+}
+
+function updateYearSummary() {
+  const startYear = Number(startYearInput.value);
+  const endYear = Number(endYearInput.value);
+  startYearValue.value = String(startYear);
+  endYearValue.value = String(endYear);
+  updateYearTrack();
+}
+
+function syncDraftYearValueInputs() {
+  if (document.activeElement !== startYearValue) {
+    startYearValue.value = String(startYearInput.value);
+  }
+  if (document.activeElement !== endYearValue) {
+    endYearValue.value = String(endYearInput.value);
+  }
+}
+
+function clampYearInputs(changedInput) {
+  let startYear = Number(startYearInput.value);
+  let endYear = Number(endYearInput.value);
+
+  if (startYear > endYear) {
+    if (changedInput === startYearInput) {
+      endYear = startYear;
+      endYearInput.value = String(endYear);
+    } else {
+      startYear = endYear;
+      startYearInput.value = String(startYear);
+    }
+  }
+
+  syncDraftYearValueInputs();
+  updateYearTrack();
+}
+
+function commitYearValueInputs(changedInput) {
+  if (!availableYearRange) {
+    return;
+  }
+
+  const minYear = availableYearRange.min_year;
+  const maxYear = availableYearRange.max_year;
+
+  let typedStart = Number.parseInt(startYearValue.value, 10);
+  let typedEnd = Number.parseInt(endYearValue.value, 10);
+
+  if (Number.isNaN(typedStart)) {
+    typedStart = Number(startYearInput.value);
+  }
+  if (Number.isNaN(typedEnd)) {
+    typedEnd = Number(endYearInput.value);
+  }
+
+  typedStart = Math.max(minYear, Math.min(maxYear, typedStart));
+  typedEnd = Math.max(minYear, Math.min(maxYear, typedEnd));
+
+  startYearInput.value = String(typedStart);
+  endYearInput.value = String(typedEnd);
+  clampYearInputs(changedInput);
+}
+
+function maybePreviewYearValueInput(changedInput) {
+  const draftValue = changedInput.value.trim();
+
+  if (!/^\d{4}$/.test(draftValue)) {
+    return;
+  }
+
+  commitYearValueInputs(changedInput === startYearValue ? startYearInput : endYearInput);
+}
+
+function commitYearValueFromField(changedInput) {
+  commitYearValueInputs(changedInput === startYearValue ? startYearInput : endYearInput);
+}
+
+async function initializeYearFilter() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/search-metadata`);
+    if (!response.ok) {
+      throw new Error(`Year metadata request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    availableYearRange = data;
+
+    startYearInput.min = String(data.min_year);
+    startYearInput.max = String(data.max_year);
+    startYearInput.value = String(data.min_year);
+    endYearInput.min = String(data.min_year);
+    endYearInput.max = String(data.max_year);
+    endYearInput.value = String(data.max_year);
+    startYearValue.min = String(data.min_year);
+    startYearValue.max = String(data.max_year);
+    endYearValue.min = String(data.min_year);
+    endYearValue.max = String(data.max_year);
+
+    buildDecadeTicks(data.min_year, data.max_year);
+    updateYearSummary();
+    yearFilterCard.hidden = false;
+  } catch (error) {
+    yearFilterCard.hidden = true;
+    console.error("Year filter unavailable:", error);
+  }
 }
 
 function ensureViewerExpanded() {
@@ -235,6 +400,11 @@ async function openRandomIssue() {
 async function runSearch(event) {
   event.preventDefault();
 
+  if (availableYearRange) {
+    commitYearValueFromField(startYearValue);
+    commitYearValueFromField(endYearValue);
+  }
+
   const query = queryInput.value.trim();
   if (!query) {
     renderEmptyState("Enter a query first.");
@@ -246,6 +416,11 @@ async function runSearch(event) {
     backend: backendSelect.value,
     limit: limitInput.value,
   });
+
+  if (availableYearRange) {
+    params.set("start_year", startYearInput.value);
+    params.set("end_year", endYearInput.value);
+  }
 
   setStatus(`Searching for "${query}"...`);
   resultsList.innerHTML = "";
@@ -283,6 +458,24 @@ async function runSearch(event) {
 
 searchForm.addEventListener("submit", runSearch);
 randomIssueButton.addEventListener("click", openRandomIssue);
+startYearInput.addEventListener("input", () => clampYearInputs(startYearInput));
+endYearInput.addEventListener("input", () => clampYearInputs(endYearInput));
+startYearValue.addEventListener("input", () => maybePreviewYearValueInput(startYearValue));
+endYearValue.addEventListener("input", () => maybePreviewYearValueInput(endYearValue));
+startYearValue.addEventListener("change", () => commitYearValueFromField(startYearValue));
+endYearValue.addEventListener("change", () => commitYearValueFromField(endYearValue));
+startYearValue.addEventListener("blur", () => commitYearValueFromField(startYearValue));
+endYearValue.addEventListener("blur", () => commitYearValueFromField(endYearValue));
+startYearValue.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    commitYearValueFromField(startYearValue);
+  }
+});
+endYearValue.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    commitYearValueFromField(endYearValue);
+  }
+});
 
 toggleViewerButton.addEventListener("click", () => {
   viewerExpanded = !viewerExpanded;
@@ -310,3 +503,5 @@ nextPageButton.addEventListener("click", () => {
   currentPage += 1;
   renderResultsPage();
 });
+
+initializeYearFilter();

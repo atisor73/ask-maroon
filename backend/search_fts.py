@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional
 
 try:
     from .db import get_chunks_connection
@@ -34,15 +34,33 @@ def _build_safe_match_query(query: str) -> str:
     return " OR ".join('"{}"'.format(term) for term in terms)
 
 
-def search_fts(query: str, limit: int = 10) -> List[dict]:
+def search_fts(
+    query: str,
+    limit: int = 10,
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None,
+) -> List[dict]:
     match_query = _build_safe_match_query(query)
     if not match_query:
         return []
 
+    where_clauses = ["chunks_fts MATCH ?"]
+    params = [match_query]
+
+    if start_year is not None:
+        where_clauses.append("CAST(c.year AS INTEGER) >= ?")
+        params.append(start_year)
+
+    if end_year is not None:
+        where_clauses.append("CAST(c.year AS INTEGER) <= ?")
+        params.append(end_year)
+
+    params.append(limit)
+
     conn = get_chunks_connection()
     try:
         rows = conn.execute(
-            """
+            f"""
             SELECT
                 c.chunk_id,
                 c.doc_id,
@@ -57,11 +75,11 @@ def search_fts(query: str, limit: int = 10) -> List[dict]:
                 bm25(chunks_fts) AS score
             FROM chunks_fts
             JOIN chunks c ON c.chunk_id = chunks_fts.chunk_id
-            WHERE chunks_fts MATCH ?
+            WHERE {' AND '.join(where_clauses)}
             ORDER BY score
             LIMIT ?
             """,
-            (match_query, limit),
+            params,
         ).fetchall()
     finally:
         conn.close()

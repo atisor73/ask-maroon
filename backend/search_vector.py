@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -16,6 +16,29 @@ DEFAULT_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_OPENAI_MODEL_NAME = "text-embedding-3-small"
 
 _RESOURCE_CACHE = {}
+
+
+def _parse_year(value) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        year = int(value)
+    except (TypeError, ValueError):
+        return None
+    return year if 1000 <= year <= 9999 else None
+
+
+def _year_in_range(value, start_year: Optional[int], end_year: Optional[int]) -> bool:
+    if start_year is None and end_year is None:
+        return True
+    year = _parse_year(value)
+    if year is None:
+        return False
+    if start_year is not None and year < start_year:
+        return False
+    if end_year is not None and year > end_year:
+        return False
+    return True
 
 
 def _load_metadata(metadata_path: Path) -> List[dict]:
@@ -117,6 +140,8 @@ def search_vector(
     backend: str = "sentence-transformers",
     embeddings_dir: Path = None,
     model_name: str = None,
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None,
 ) -> List[dict]:
     if embeddings_dir is None:
         embeddings_dir = SENTENCE_TRANSFORMERS_DIR if backend == "sentence-transformers" else OPENAI_DIR
@@ -131,14 +156,34 @@ def search_vector(
 
     query_vector = _embed_query(query, backend=backend, model=model, model_name=model_name)
 
-    scores, indices = index.search(query_vector, limit)
+    requested_k = min(len(metadata), max(limit, 1))
     hit_metadata = []
-    for score, idx in zip(scores[0], indices[0]):
-        if idx < 0 or idx >= len(metadata):
-            continue
-        row = dict(metadata[idx])
-        row["score"] = float(score)
-        hit_metadata.append(row)
+    seen_chunk_ids = set()
+
+    while requested_k > 0:
+        scores, indices = index.search(query_vector, requested_k)
+        hit_metadata = []
+        seen_chunk_ids.clear()
+
+        for score, idx in zip(scores[0], indices[0]):
+            if idx < 0 or idx >= len(metadata):
+                continue
+            row = dict(metadata[idx])
+            if not _year_in_range(row.get("year"), start_year, end_year):
+                continue
+            chunk_id = row.get("chunk_id")
+            if chunk_id in seen_chunk_ids:
+                continue
+            seen_chunk_ids.add(chunk_id)
+            row["score"] = float(score)
+            hit_metadata.append(row)
+            if len(hit_metadata) >= limit:
+                break
+
+        if len(hit_metadata) >= limit or requested_k >= len(metadata):
+            break
+
+        requested_k = min(len(metadata), requested_k * 2)
 
     chunk_map = _fetch_chunks_by_ids([row["chunk_id"] for row in hit_metadata])
 

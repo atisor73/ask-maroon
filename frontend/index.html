@@ -53,6 +53,41 @@
 
               <button class="search-button" type="submit">Search</button>
             </div>
+
+            <section class="year-filter-card" id="year-filter-card" hidden>
+              <div class="year-filter-header">
+                <span class="year-filter-label">Year Range</span>
+                <div class="year-slider-readout">
+                  <label class="year-slider-label" for="start-year-value">
+                    <span>Start</span>
+                    <input id="start-year-value" class="year-value-input" type="number" />
+                  </label>
+                  <span class="year-slider-divider" aria-hidden="true">-</span>
+                  <label class="year-slider-label" for="end-year-value">
+                    <span>End</span>
+                    <input id="end-year-value" class="year-value-input" type="number" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="year-dual-slider">
+                <input
+                  id="start-year-input"
+                  class="year-slider year-slider-start"
+                  type="range"
+                  list="year-decade-ticks"
+                />
+                <input
+                  id="end-year-input"
+                  class="year-slider year-slider-end"
+                  type="range"
+                  list="year-decade-ticks"
+                />
+                <div id="year-tick-marks" class="year-tick-marks" aria-hidden="true"></div>
+              </div>
+
+              <datalist id="year-decade-ticks"></datalist>
+            </section>
           </form>
 
           <section class="status-card" id="status-card">

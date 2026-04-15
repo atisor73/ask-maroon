@@ -212,6 +212,184 @@ body {
   flex-wrap: wrap;
 }
 
+.year-filter-card {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(109, 16, 34, 0.12);
+}
+
+.year-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.year-filter-label {
+  color: var(--maroon);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+
+.year-slider-readout {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.year-slider-label {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-family: var(--mono);
+  flex: 0 0 auto;
+}
+
+.year-slider-divider {
+  color: rgba(29, 29, 34, 0.42);
+  font-size: 0.82rem;
+  font-family: var(--mono);
+}
+
+.year-value-input {
+  width: 4.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-strong);
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-family: var(--mono);
+  padding: 3px 6px;
+}
+
+.year-value-input:focus {
+  outline: 2px solid rgba(109, 16, 34, 0.14);
+  border-color: rgba(109, 16, 34, 0.4);
+}
+
+.year-dual-slider {
+  position: relative;
+  height: 50px;
+  margin-left: 8px;
+  margin-right: 8px;
+  --range-start: 0%;
+  --range-end: 100%;
+}
+
+.year-dual-slider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: rgba(109, 16, 34, 0.18);
+  border-radius: 999px;
+}
+
+.year-dual-slider::after {
+  content: "";
+  position: absolute;
+  left: var(--range-start);
+  width: calc(var(--range-end) - var(--range-start));
+  top: 50%;
+  height: 5px;
+  transform: translateY(-50%);
+  background: rgba(109, 16, 34, 0.72);
+  border-radius: 999px;
+}
+
+.year-tick-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.year-tick-mark {
+  position: absolute;
+  top: 16px;
+  width: 1px;
+  height: 10px;
+  transform: translateX(-50%);
+  background: rgba(29, 29, 34, 0.28);
+}
+
+.year-tick-label {
+  position: absolute;
+  top: 30px;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.year-slider {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.year-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  background: transparent;
+  border-radius: 999px;
+}
+
+.year-slider::-moz-range-track {
+  height: 3px;
+  background: transparent;
+  border-radius: 999px;
+}
+
+.year-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--maroon);
+  background: var(--paper-strong);
+  box-shadow: 0 1px 3px rgba(37, 24, 26, 0.16);
+  margin-top: -6px;
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.year-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--maroon);
+  background: var(--paper-strong);
+  box-shadow: 0 1px 3px rgba(37, 24, 26, 0.16);
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.year-slider-start {
+  z-index: 4;
+}
+
+.year-slider-end {
+  z-index: 5;
+}
+
 .compact-field {
   min-width: 150px;
 }

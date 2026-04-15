@@ -1,16 +1,17 @@
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 try:
-    from .db import PROJECT_ROOT, fetch_document, fetch_random_document
-    from .schemas import SearchResponse
+    from .db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
+    from .schemas import SearchMetadataResponse, SearchResponse
     from .search import search
 except ImportError:
-    from db import PROJECT_ROOT, fetch_document, fetch_random_document
-    from schemas import SearchResponse
+    from db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
+    from schemas import SearchMetadataResponse, SearchResponse
     from search import search
 
 
@@ -33,6 +34,8 @@ def run_search_with_fallback(
     limit: int,
     vector_k: int,
     fts_k: int,
+    start_year: Optional[int],
+    end_year: Optional[int],
 ) -> dict:
     """
     Try the requested vector backend first.
@@ -48,6 +51,8 @@ def run_search_with_fallback(
             vector_k=vector_k,
             fts_k=fts_k,
             backend=backend,
+            start_year=start_year,
+            end_year=end_year,
         )
         result["requested_backend"] = backend
         result["used_fallback"] = False
@@ -63,6 +68,8 @@ def run_search_with_fallback(
             vector_k=vector_k,
             fts_k=fts_k,
             backend="sentence-transformers",
+            start_year=start_year,
+            end_year=end_year,
         )
         fallback_result["requested_backend"] = backend
         fallback_result["used_fallback"] = True
@@ -86,14 +93,29 @@ def search_endpoint(
     limit: int = Query(10, ge=1, le=50),
     vector_k: int = Query(50, ge=1, le=500),
     fts_k: int = Query(25, ge=1, le=200),
+    start_year: Optional[int] = Query(None, ge=1000, le=9999),
+    end_year: Optional[int] = Query(None, ge=1000, le=9999),
 ):
+    if start_year is not None and end_year is not None and start_year > end_year:
+        raise HTTPException(status_code=400, detail="start_year must be less than or equal to end_year")
+
     return run_search_with_fallback(
         query=q,
         backend=backend,
         limit=limit,
         vector_k=vector_k,
         fts_k=fts_k,
+        start_year=start_year,
+        end_year=end_year,
     )
+
+
+@app.get("/search-metadata", response_model=SearchMetadataResponse)
+def search_metadata_endpoint():
+    row = fetch_year_range()
+    if row is None or row["min_year"] is None or row["max_year"] is None:
+        raise HTTPException(status_code=404, detail="No year metadata available")
+    return {"min_year": row["min_year"], "max_year": row["max_year"]}
 
 
 @app.get("/document/{doc_id}")

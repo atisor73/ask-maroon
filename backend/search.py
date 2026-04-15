@@ -1,6 +1,6 @@
 import html
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 try:
     from .db import fetch_documents
@@ -394,6 +394,8 @@ def search(
     vector_k: int = 50,
     fts_k: int = 25,
     backend: str = "sentence-transformers",
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None,
 ) -> dict:
     """
     Main backend search entrypoint.
@@ -402,8 +404,19 @@ def search(
     - chunk-ranked results for fine-grained retrieval/debugging
     - document-grouped results for the frontend list view
     """
-    vector_results = search_vector(query, limit=vector_k, backend=backend)
-    fts_results = search_fts(query, limit=fts_k)
+    vector_results = search_vector(
+        query,
+        limit=vector_k,
+        backend=backend,
+        start_year=start_year,
+        end_year=end_year,
+    )
+    fts_results = search_fts(
+        query,
+        limit=fts_k,
+        start_year=start_year,
+        end_year=end_year,
+    )
     merged_chunks = _merge_results(vector_results, fts_results)
 
     for row in merged_chunks:

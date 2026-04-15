@@ -55,3 +55,8 @@ class SearchResponse(BaseModel):
     fallback_reason: Optional[str] = None
     chunk_results: List[ChunkResult]
     document_results: List[DocumentResult]
+
+
+class SearchMetadataResponse(BaseModel):
+    min_year: int
+    max_year: int

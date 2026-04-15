@@ -55,6 +55,22 @@ def fetch_random_document() -> Optional[sqlite3.Row]:
         conn.close()
 
 
+def fetch_year_range() -> Optional[sqlite3.Row]:
+    conn = get_archive_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT
+                MIN(CAST(year AS INTEGER)) AS min_year,
+                MAX(CAST(year AS INTEGER)) AS max_year
+            FROM documents
+            WHERE year GLOB '[0-9][0-9][0-9][0-9]'
+            """
+        ).fetchone()
+    finally:
+        conn.close()
+
+
 def fetch_documents(doc_ids: Iterable[str]) -> List[sqlite3.Row]:
     doc_ids = list(doc_ids)
     if not doc_ids:

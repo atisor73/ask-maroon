@@ -17,16 +17,19 @@ We are working to integrate image embeddings and other new features.
 
 # To-do's
 
+add 'advanced search options'  dropdown
+and then year range slider lives here
+as well as Serendipitous search 
+
 - A. Add year filter? add visual timeline?
   - would be cool if we displayed an interactive timeline and then draw a circle for every search result that shows up (but we are pretty limited by number of results returned by backend)
   - Show distribution of chunk score?
 
-- C. Add cap to maximum number of results that can be returned per query
 
 - D. some fun animation while search is loading (phoenix flying?)
 
 
-- B. Add info button explaining UI, randomize button, modeling, link to github/issues. FAQ section?
+- B1. Add info button explaining UI, randomize button, modeling, link to github/issues. FAQ section?
 	- highlighting
 	- It is really saying:
 		“this whole chunk is semantically near the query”
@@ -37,7 +40,7 @@ We are working to integrate image embeddings and other new features.
 		So could that be misleading?
 		A little, yes, if it’s presented too strongly.
 	
-- F. Add better documentation to each individual file as to what it is doing methodologically and how it is doing it (it will force you to do your own code review)
+- B2. Add better documentation to each individual file as to what it is doing methodologically and how it is doing it (it will force you to do your own code review)
 
 - E1. Query Expansion: LLM (see below in E2 for details):
 	- use a local LLM to rewrite a query into:	related entities, alternate phrasings,narrower/broader subqueries
