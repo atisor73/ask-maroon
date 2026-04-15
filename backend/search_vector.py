@@ -14,6 +14,8 @@ SENTENCE_TRANSFORMERS_DIR = OUTPUT_DIR / "embeddings_sentencetransformers"
 OPENAI_DIR = OUTPUT_DIR / "embeddings_openai"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_OPENAI_MODEL_NAME = "text-embedding-3-small"
+DEFAULT_SEARCH_MODE = "greedy"
+DEFAULT_SAMPLE_MIN_SCORE = 0.3
 
 _RESOURCE_CACHE = {}
 
@@ -134,6 +136,34 @@ def _fetch_chunks_by_ids(chunk_ids: List[str]) -> Dict[str, dict]:
     return {row["chunk_id"]: dict(row) for row in rows}
 
 
+def _softmax_probabilities(scores: np.ndarray, temperature: float) -> np.ndarray:
+    if scores.size == 0:
+        return scores
+
+    scaled = (scores - np.max(scores)) / max(temperature, 1e-6)
+    weights = np.exp(scaled)
+    total = np.sum(weights)
+    if not np.isfinite(total) or total <= 0:
+        return np.full(scores.shape, 1.0 / scores.size, dtype="float64")
+    return weights / total
+
+
+def _sample_without_replacement(results: List[dict], sample_size: int, temperature: float) -> List[dict]:
+    if sample_size <= 0 or not results:
+        return []
+
+    remaining = list(results)
+    sampled = []
+
+    while remaining and len(sampled) < sample_size:
+        scores = np.array([row["score"] for row in remaining], dtype="float64")
+        probabilities = _softmax_probabilities(scores, temperature)
+        selected_index = int(np.random.choice(len(remaining), p=probabilities))
+        sampled.append(remaining.pop(selected_index))
+
+    return sampled
+
+
 def search_vector(
     query: str,
     limit: int = 10,
@@ -142,6 +172,10 @@ def search_vector(
     model_name: str = None,
     start_year: Optional[int] = None,
     end_year: Optional[int] = None,
+    search_mode: str = DEFAULT_SEARCH_MODE,
+    sample_top_n: int = 100,
+    temperature: float = 1.0,
+    sample_min_score: float = DEFAULT_SAMPLE_MIN_SCORE,
 ) -> List[dict]:
     if embeddings_dir is None:
         embeddings_dir = SENTENCE_TRANSFORMERS_DIR if backend == "sentence-transformers" else OPENAI_DIR
@@ -156,7 +190,16 @@ def search_vector(
 
     query_vector = _embed_query(query, backend=backend, model=model, model_name=model_name)
 
-    requested_k = min(len(metadata), max(limit, 1))
+    if search_mode not in {"greedy", "sample"}:
+        raise ValueError("Unsupported search_mode: {}".format(search_mode))
+    if temperature <= 0:
+        raise ValueError("temperature must be greater than 0")
+
+    candidate_limit = max(limit, 1)
+    if search_mode == "sample":
+        candidate_limit = max(candidate_limit, sample_top_n)
+
+    requested_k = min(len(metadata), candidate_limit)
     hit_metadata = []
     seen_chunk_ids = set()
 
@@ -177,10 +220,10 @@ def search_vector(
             seen_chunk_ids.add(chunk_id)
             row["score"] = float(score)
             hit_metadata.append(row)
-            if len(hit_metadata) >= limit:
+            if len(hit_metadata) >= candidate_limit:
                 break
 
-        if len(hit_metadata) >= limit or requested_k >= len(metadata):
+        if len(hit_metadata) >= candidate_limit or requested_k >= len(metadata):
             break
 
         requested_k = min(len(metadata), requested_k * 2)
@@ -201,7 +244,20 @@ def search_vector(
             }
         )
 
-    return results
+    if search_mode == "sample":
+        candidate_pool = [
+            row for row in results[:sample_top_n]
+            if row["score"] >= sample_min_score
+        ]
+
+        if candidate_pool:
+            return _sample_without_replacement(
+                candidate_pool,
+                sample_size=min(limit, len(candidate_pool)),
+                temperature=temperature,
+            )
+
+    return results[:limit]
 
 
 if __name__ == "__main__":

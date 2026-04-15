@@ -36,6 +36,9 @@ def run_search_with_fallback(
     fts_k: int,
     start_year: Optional[int],
     end_year: Optional[int],
+    search_mode: str,
+    sample_top_n: int,
+    temperature: float,
 ) -> dict:
     """
     Try the requested vector backend first.
@@ -53,6 +56,9 @@ def run_search_with_fallback(
             backend=backend,
             start_year=start_year,
             end_year=end_year,
+            search_mode=search_mode,
+            sample_top_n=sample_top_n,
+            temperature=temperature,
         )
         result["requested_backend"] = backend
         result["used_fallback"] = False
@@ -70,6 +76,9 @@ def run_search_with_fallback(
             backend="sentence-transformers",
             start_year=start_year,
             end_year=end_year,
+            search_mode=search_mode,
+            sample_top_n=sample_top_n,
+            temperature=temperature,
         )
         fallback_result["requested_backend"] = backend
         fallback_result["used_fallback"] = True
@@ -95,6 +104,9 @@ def search_endpoint(
     fts_k: int = Query(25, ge=1, le=200),
     start_year: Optional[int] = Query(None, ge=1000, le=9999),
     end_year: Optional[int] = Query(None, ge=1000, le=9999),
+    search_mode: str = Query("greedy", pattern="^(greedy|sample)$"),
+    sample_top_n: int = Query(100, ge=25, le=100),
+    temperature: float = Query(1.0, ge=0.1, le=10.0),
 ):
     if start_year is not None and end_year is not None and start_year > end_year:
         raise HTTPException(status_code=400, detail="start_year must be less than or equal to end_year")
@@ -107,6 +119,9 @@ def search_endpoint(
         fts_k=fts_k,
         start_year=start_year,
         end_year=end_year,
+        search_mode=search_mode,
+        sample_top_n=sample_top_n,
+        temperature=temperature,
     )
 
 

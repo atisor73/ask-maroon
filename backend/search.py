@@ -396,6 +396,9 @@ def search(
     backend: str = "sentence-transformers",
     start_year: Optional[int] = None,
     end_year: Optional[int] = None,
+    search_mode: str = "greedy",
+    sample_top_n: int = 100,
+    temperature: float = 1.0,
 ) -> dict:
     """
     Main backend search entrypoint.
@@ -410,6 +413,9 @@ def search(
         backend=backend,
         start_year=start_year,
         end_year=end_year,
+        search_mode=search_mode,
+        sample_top_n=sample_top_n,
+        temperature=temperature,
     )
     fts_results = search_fts(
         query,

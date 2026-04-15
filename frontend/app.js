@@ -4,6 +4,10 @@ const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
 const backendSelect = document.querySelector("#backend-select");
 const limitInput = document.querySelector("#limit-input");
+const searchModeInputs = document.querySelectorAll('input[name="search-mode"]');
+const sampleTopNInput = document.querySelector("#sample-top-n-input");
+const temperatureInput = document.querySelector("#temperature-input");
+const samplingControls = document.querySelector("#sampling-controls");
 const yearFilterCard = document.querySelector("#year-filter-card");
 const startYearInput = document.querySelector("#start-year-input");
 const endYearInput = document.querySelector("#end-year-input");
@@ -34,6 +38,21 @@ let currentResults = [];
 let currentPage = 1;
 let availableYearRange = null;
 const RESULTS_PER_PAGE = 10;
+
+function selectedSearchMode() {
+  const checked = document.querySelector('input[name="search-mode"]:checked');
+  return checked?.value || "greedy";
+}
+
+function updateSamplingControls() {
+  const isSampling = selectedSearchMode() === "sample";
+  samplingControls.classList.toggle("is-disabled", !isSampling);
+  sampleTopNInput.disabled = !isSampling;
+  temperatureInput.disabled = !isSampling;
+  if (!sampleTopNInput.value) {
+    sampleTopNInput.value = "100";
+  }
+}
 
 function setStatus(message) {
   statusText.textContent = message;
@@ -249,8 +268,10 @@ function buildResultCard(documentResult) {
   const pageLabel = bestChunk?.page_number ? ` • p. ${bestChunk.page_number}` : "";
 
   article.innerHTML = `
-    <p class="result-kicker">${date} • ${documentResult.doc_id}${pageLabel}</p>
-    <h3>${escapeHtml(title)}</h3>
+    <div class="result-header">
+      <h3>${escapeHtml(title)}</h3>
+      <p class="result-kicker">${date}${pageLabel}</p>
+    </div>
     <div class="result-snippet-wrap">
       <p class="result-snippet">${snippetHtml}</p>
       <div class="result-fulltext" hidden>${fullTextHtml}</div>
@@ -415,7 +436,13 @@ async function runSearch(event) {
     q: query,
     backend: backendSelect.value,
     limit: limitInput.value,
+    search_mode: selectedSearchMode(),
   });
+
+  if (selectedSearchMode() === "sample") {
+    params.set("sample_top_n", sampleTopNInput.value);
+    params.set("temperature", temperatureInput.value);
+  }
 
   if (availableYearRange) {
     params.set("start_year", startYearInput.value);
@@ -458,6 +485,9 @@ async function runSearch(event) {
 
 searchForm.addEventListener("submit", runSearch);
 randomIssueButton.addEventListener("click", openRandomIssue);
+searchModeInputs.forEach((input) => {
+  input.addEventListener("change", updateSamplingControls);
+});
 startYearInput.addEventListener("input", () => clampYearInputs(startYearInput));
 endYearInput.addEventListener("input", () => clampYearInputs(endYearInput));
 startYearValue.addEventListener("input", () => maybePreviewYearValueInput(startYearValue));
@@ -505,3 +535,4 @@ nextPageButton.addEventListener("click", () => {
 });
 
 initializeYearFilter();
+updateSamplingControls();
