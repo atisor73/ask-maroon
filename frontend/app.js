@@ -351,14 +351,19 @@ function buildResultCard(documentResult) {
   const snippet = article.querySelector(".result-snippet");
   const fullText = article.querySelector(".result-fulltext");
   const openPdfButton = article.querySelector(".result-meta button");
+  const pageNumber = preferredPage(documentResult);
 
-  snippetToggle.addEventListener("click", (event) => {
-    event.stopPropagation();
+  function toggleExpandedText() {
     const isExpanded = snippetToggle.getAttribute("aria-expanded") === "true";
     snippetToggle.setAttribute("aria-expanded", String(!isExpanded));
     snippetToggle.textContent = isExpanded ? "▼" : "▲";
     snippet.hidden = !isExpanded;
     fullText.hidden = isExpanded;
+  }
+
+  snippetToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleExpandedText();
   });
 
   openPdfButton.addEventListener("click", (event) => {
@@ -369,6 +374,10 @@ function buildResultCard(documentResult) {
 
   article.addEventListener("click", () => {
     setSelectedCard(article);
+    if (selectedDocId === documentResult.doc_id && selectedPageNumber === pageNumber) {
+      toggleExpandedText();
+      return;
+    }
     openPdf(documentResult);
   });
 

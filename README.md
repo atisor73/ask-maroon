@@ -16,6 +16,7 @@ We are working to integrate image embeddings and other new features.
 
 
 # To-do's
+- Make .mov demo
 
 - B1. Add info button explaining UI, randomize button, modeling, link to github/issues. FAQ section?
 	- highlighting
