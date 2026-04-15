@@ -17,17 +17,7 @@ We are working to integrate image embeddings and other new features.
 
 # To-do's
 
-add 'advanced search options'  dropdown
-and then year range slider lives here
-as well as Serendipitous search 
-
-- A. Add year filter? add visual timeline?
-  - would be cool if we displayed an interactive timeline and then draw a circle for every search result that shows up (but we are pretty limited by number of results returned by backend)
-  - Show distribution of chunk score?
-
-
 - D. some fun animation while search is loading (phoenix flying?)
-
 
 - B1. Add info button explaining UI, randomize button, modeling, link to github/issues. FAQ section?
 	- highlighting
@@ -76,6 +66,16 @@ as well as Serendipitous search
 		- Frontend: Cloudflare Pages
 		- Files: Cloudflare R2
 		- Backend: one small VM on AWS Lightsail or EC2
+
+# Finished
+
+add 'advanced search options'  dropdown
+and then year range slider lives here
+as well as Serendipitous search 
+
+- A. Add year filter? add visual timeline?
+  - would be cool if we displayed an interactive timeline and then draw a circle for every search result that shows up (but we are pretty limited by number of results returned by backend)
+  - Show distribution of chunk score?
 
 
 # data_pipeline/

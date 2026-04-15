@@ -37,6 +37,8 @@ let viewerExpanded = false;
 let currentResults = [];
 let currentPage = 1;
 let availableYearRange = null;
+let currentVectorBackend = null;
+let currentUsedFallback = false;
 const RESULTS_PER_PAGE = 10;
 
 function selectedSearchMode() {
@@ -68,8 +70,23 @@ function renderEmptyState(message) {
   resultsList.innerHTML = "";
   currentResults = [];
   currentPage = 1;
+  currentVectorBackend = null;
+  currentUsedFallback = false;
   paginationBar.hidden = true;
   setStatus(message);
+}
+
+function updateResultsStatus() {
+  if (!currentResults.length || !currentVectorBackend) {
+    return;
+  }
+
+  const start = (currentPage - 1) * RESULTS_PER_PAGE + 1;
+  const end = Math.min(currentResults.length, currentPage * RESULTS_PER_PAGE);
+  const fallbackPrefix = currentUsedFallback ? "OpenAI unavailable, fell back. " : "";
+  setStatus(
+    `${fallbackPrefix}Showing ${start}\u2013${end} of ${currentResults.length} documents using ${currentVectorBackend}.`
+  );
 }
 
 function updateViewerMode() {
@@ -332,6 +349,7 @@ function renderPagination() {
   paginationText.textContent = label;
   prevPageButton.disabled = currentPage <= 1;
   nextPageButton.disabled = currentPage >= totalPages;
+  updateResultsStatus();
 }
 
 function renderResultsPage() {
@@ -360,6 +378,7 @@ function renderResultsPage() {
   });
 
   renderPagination();
+  updateResultsStatus();
 }
 
 function openPdf(documentResult) {
@@ -465,18 +484,10 @@ async function runSearch(event) {
     }
 
     // Tell the user which vector backend actually served the request.
-    if (data.used_fallback) {
-      setStatus(
-        `OpenAI query failed, so the backend fell back to ${data.vector_backend}. Showing ${data.document_results.length} documents.`
-      );
-    } else {
-      setStatus(
-        `Showing ${data.document_results.length} documents using ${data.vector_backend}.`
-      );
-    }
-
     currentResults = data.document_results;
     currentPage = 1;
+    currentVectorBackend = data.vector_backend;
+    currentUsedFallback = Boolean(data.used_fallback);
     renderResultsPage();
   } catch (error) {
     renderEmptyState(`Search failed: ${error.message}`);
