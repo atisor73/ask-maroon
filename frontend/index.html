@@ -48,7 +48,7 @@
 
               <label class="field compact-field">
                 <span>Results</span>
-                <input id="limit-input" name="limit" type="number" value="8" min="1" max="20" />
+                <input id="limit-input" name="limit" type="number" value="20" min="1" max="50" />
               </label>
 
               <button class="search-button" type="submit">Search</button>
@@ -60,18 +60,28 @@
           </section>
 
           <section class="results-list" id="results-list"></section>
+
+          <section class="pagination-bar" id="pagination-bar" hidden>
+            <button id="prev-page-button" class="pagination-button" type="button">Previous</button>
+            <span id="pagination-text"></span>
+            <button id="next-page-button" class="pagination-button" type="button">Next</button>
+          </section>
         </section>
 
         <aside class="viewer-panel">
           <div class="viewer-header">
-            <div>
-              <p class="eyebrow">Original PDF</p>
-              <h2 id="viewer-title">No document selected</h2>
-              <p id="viewer-subtitle" class="viewer-subtitle">Select a result to load the issue inline.</p>
+            <div class="viewer-main">
+              <div class="viewer-topline">
+                <p class="eyebrow">Original PDF</p>
+              </div>
+              <div class="viewer-heading">
+                <h2 id="viewer-title">No document selected</h2>
+                <p id="viewer-subtitle" class="viewer-subtitle"></p>
+              </div>
             </div>
             <div class="viewer-actions">
               <button id="toggle-viewer-button" class="viewer-mode-button" type="button">
-                Expand PDF
+                Expand PDF-Viewer
               </button>
               <a id="open-pdf-link" class="viewer-link" href="#" target="_blank" rel="noreferrer">
                 Open In New Tab
@@ -91,6 +101,15 @@
           ></iframe>
         </aside>
       </main>
+
+      <button
+        id="collapse-viewer-edge"
+        class="collapse-viewer-edge"
+        type="button"
+        aria-label="Bring back query panel"
+      >
+        &gt;&gt;&gt;
+      </button>
     </div>
 
     <script type="module" src="./app.js"></script>

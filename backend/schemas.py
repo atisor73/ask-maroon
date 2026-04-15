@@ -16,6 +16,7 @@ class ChunkResult(BaseModel):
     text: str
     snippet: str
     snippet_html: str
+    full_text_html: str
     word_count: int
     score: float
     vector_score: Optional[float] = None

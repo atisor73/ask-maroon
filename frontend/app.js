@@ -6,17 +6,25 @@ const backendSelect = document.querySelector("#backend-select");
 const limitInput = document.querySelector("#limit-input");
 const resultsList = document.querySelector("#results-list");
 const statusText = document.querySelector("#status-text");
+const paginationBar = document.querySelector("#pagination-bar");
+const paginationText = document.querySelector("#pagination-text");
+const prevPageButton = document.querySelector("#prev-page-button");
+const nextPageButton = document.querySelector("#next-page-button");
 const viewerTitle = document.querySelector("#viewer-title");
 const viewerSubtitle = document.querySelector("#viewer-subtitle");
 const openPdfLink = document.querySelector("#open-pdf-link");
 const pdfFrame = document.querySelector("#pdf-frame");
 const toggleViewerButton = document.querySelector("#toggle-viewer-button");
 const randomIssueButton = document.querySelector("#random-issue-button");
+const collapseViewerEdge = document.querySelector("#collapse-viewer-edge");
 
 let selectedCard = null;
 let selectedDocId = null;
 let selectedPageNumber = null;
 let viewerExpanded = false;
+let currentResults = [];
+let currentPage = 1;
+const RESULTS_PER_PAGE = 10;
 
 function setStatus(message) {
   statusText.textContent = message;
@@ -30,12 +38,15 @@ function escapeHtml(text) {
 
 function renderEmptyState(message) {
   resultsList.innerHTML = "";
+  currentResults = [];
+  currentPage = 1;
+  paginationBar.hidden = true;
   setStatus(message);
 }
 
 function updateViewerMode() {
   document.body.classList.toggle("pdf-focus-mode", viewerExpanded);
-  toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF" : "Expand PDF";
+  toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF-Viewer" : "Expand PDF-Viewer";
 }
 
 function ensureViewerExpanded() {
@@ -46,6 +57,10 @@ function ensureViewerExpanded() {
 }
 
 function preferredPage(documentResult) {
+  if (!documentResult?.chunks?.length) {
+    return null;
+  }
+
   const bestChunk =
     documentResult.chunks.find((chunk) => chunk.chunk_id === documentResult.best_chunk_id) ||
     documentResult.chunks[0];
@@ -65,7 +80,7 @@ function buildResultCard(documentResult) {
   const title = documentResult.title || documentResult.doc_id;
   const date = documentResult.date || "Unknown date";
   const snippetHtml = bestChunk?.snippet_html || escapeHtml(bestChunk?.snippet || "");
-  const fullTextHtml = escapeHtml(bestChunk?.text || "");
+  const fullTextHtml = bestChunk?.full_text_html || escapeHtml(bestChunk?.text || "");
   const pageLabel = bestChunk?.page_number ? ` • p. ${bestChunk.page_number}` : "";
 
   article.innerHTML = `
@@ -80,9 +95,9 @@ function buildResultCard(documentResult) {
     </div>
     <div class="result-meta">
       <span>
-        doc score: ${documentResult.doc_score.toFixed(3)} • best chunk: ${documentResult.best_chunk_score.toFixed(3)}
+        doc score: ${documentResult.doc_score.toFixed(3)} • chunk score: ${documentResult.best_chunk_score.toFixed(3)}
       </span>
-      <button type="button">Open PDF</button>
+      <button type="button">View PDF</button>
     </div>
   `;
 
@@ -114,6 +129,53 @@ function buildResultCard(documentResult) {
   return article;
 }
 
+function renderPagination() {
+  const totalResults = currentResults.length;
+  const totalPages = Math.max(1, Math.ceil(totalResults / RESULTS_PER_PAGE));
+
+  if (totalResults <= RESULTS_PER_PAGE) {
+    paginationBar.hidden = true;
+    return;
+  }
+
+  const start = (currentPage - 1) * RESULTS_PER_PAGE + 1;
+  const end = Math.min(totalResults, currentPage * RESULTS_PER_PAGE);
+  const label = `${start}\u2013${end} of ${totalResults}`;
+
+  paginationBar.hidden = false;
+  paginationText.textContent = label;
+  prevPageButton.disabled = currentPage <= 1;
+  nextPageButton.disabled = currentPage >= totalPages;
+}
+
+function renderResultsPage() {
+  resultsList.innerHTML = "";
+  selectedDocId = null;
+  selectedPageNumber = null;
+  setSelectedCard(null);
+
+  if (!currentResults.length) {
+    renderPagination();
+    return;
+  }
+
+  const start = (currentPage - 1) * RESULTS_PER_PAGE;
+  const end = start + RESULTS_PER_PAGE;
+  const pageResults = currentResults.slice(start, end);
+
+  pageResults.forEach((documentResult, index) => {
+    const card = buildResultCard(documentResult);
+    resultsList.appendChild(card);
+
+    if (index === 0) {
+      setSelectedCard(card);
+      openPdf(documentResult);
+    }
+  });
+
+  renderPagination();
+}
+
 function openPdf(documentResult) {
   const pageNumber = preferredPage(documentResult);
 
@@ -129,8 +191,8 @@ function openPdf(documentResult) {
   selectedPageNumber = pageNumber;
   viewerTitle.textContent = documentResult.title || documentResult.doc_id;
   viewerSubtitle.textContent = pageNumber
-    ? `${documentResult.date || "Unknown date"} • ${documentResult.doc_id} • Page ${pageNumber}`
-    : `${documentResult.date || "Unknown date"} • ${documentResult.doc_id}`;
+    ? `${documentResult.date || "Unknown date"} • Page ${pageNumber}`
+    : `${documentResult.date || "Unknown date"}`;
   openPdfLink.href = pdfUrl;
   pdfFrame.src = pdfUrl;
 }
@@ -195,10 +257,6 @@ async function runSearch(event) {
     }
 
     const data = await response.json();
-    resultsList.innerHTML = "";
-    selectedDocId = null;
-    selectedPageNumber = null;
-
     if (!data.document_results.length) {
       renderEmptyState(`No results found for "${query}".`);
       return;
@@ -215,16 +273,9 @@ async function runSearch(event) {
       );
     }
 
-    data.document_results.forEach((documentResult, index) => {
-      const card = buildResultCard(documentResult);
-      resultsList.appendChild(card);
-
-      // Auto-open the top result so the PDF pane is not empty after a search.
-      if (index === 0) {
-        setSelectedCard(card);
-        openPdf(documentResult);
-      }
-    });
+    currentResults = data.document_results;
+    currentPage = 1;
+    renderResultsPage();
   } catch (error) {
     renderEmptyState(`Search failed: ${error.message}`);
   }
@@ -236,4 +287,26 @@ randomIssueButton.addEventListener("click", openRandomIssue);
 toggleViewerButton.addEventListener("click", () => {
   viewerExpanded = !viewerExpanded;
   updateViewerMode();
+});
+
+collapseViewerEdge.addEventListener("click", () => {
+  viewerExpanded = false;
+  updateViewerMode();
+});
+
+prevPageButton.addEventListener("click", () => {
+  if (currentPage <= 1) {
+    return;
+  }
+  currentPage -= 1;
+  renderResultsPage();
+});
+
+nextPageButton.addEventListener("click", () => {
+  const totalPages = Math.max(1, Math.ceil(currentResults.length / RESULTS_PER_PAGE));
+  if (currentPage >= totalPages) {
+    return;
+  }
+  currentPage += 1;
+  renderResultsPage();
 });

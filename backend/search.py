@@ -13,6 +13,52 @@ except ImportError:
 
 
 SNIPPET_LENGTH = 280
+WINDOW_WORDS = 24
+WINDOW_STRIDE = 12
+STOPWORDS = {
+    "about",
+    "after",
+    "again",
+    "also",
+    "among",
+    "and",
+    "are",
+    "because",
+    "been",
+    "being",
+    "between",
+    "both",
+    "during",
+    "from",
+    "have",
+    "into",
+    "just",
+    "more",
+    "most",
+    "over",
+    "said",
+    "some",
+    "than",
+    "that",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "under",
+    "very",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "with",
+    "would",
+}
 
 
 def _query_terms(query: str) -> List[str]:
@@ -26,6 +72,156 @@ def _query_terms(query: str) -> List[str]:
     """
     terms = re.findall(r"[A-Za-z0-9]+", query.lower())
     return [term for term in terms if len(term) >= 3]
+
+
+def _stem_token(token: str) -> str:
+    token = token.lower()
+    for suffix in ("ingly", "edly", "ing", "edly", "edly", "ed", "es", "s"):
+        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+            return token[: -len(suffix)]
+    return token
+
+
+def _content_terms(query: str) -> List[str]:
+    return [term for term in _query_terms(query) if term not in STOPWORDS]
+
+
+def _sentence_candidates(text: str) -> List[str]:
+    clean_text = re.sub(r"\s+", " ", text).strip()
+    if not clean_text:
+        return []
+
+    sentence_like = [
+        part.strip()
+        for part in re.split(r"(?<=[.!?;:])\s+", clean_text)
+        if part.strip()
+    ]
+
+    candidates = [part for part in sentence_like if len(part) >= 35]
+
+    words = clean_text.split()
+    if len(words) > WINDOW_WORDS:
+        for start in range(0, len(words), WINDOW_STRIDE):
+            window = " ".join(words[start : start + WINDOW_WORDS]).strip()
+            if len(window) >= 35:
+                candidates.append(window)
+            if start + WINDOW_WORDS >= len(words):
+                break
+
+    # Preserve order while removing duplicates.
+    seen = set()
+    deduped = []
+    for candidate in candidates:
+        key = candidate.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(candidate)
+    return deduped
+
+
+def _segment_score(segment: str, query: str) -> float:
+    query_terms = _content_terms(query)
+    if not query_terms:
+        return 0.0
+
+    segment_terms = re.findall(r"[A-Za-z0-9]+", segment.lower())
+    if not segment_terms:
+        return 0.0
+
+    query_stems = [_stem_token(term) for term in query_terms]
+    segment_stems = [_stem_token(term) for term in segment_terms]
+    segment_text = segment.lower()
+
+    exact_hits = sum(1 for term in query_terms if re.search(r"\b{}\b".format(re.escape(term)), segment_text))
+
+    stem_hits = 0
+    for query_stem in query_stems:
+        if any(
+            seg_stem == query_stem
+            or seg_stem.startswith(query_stem)
+            or query_stem.startswith(seg_stem)
+            for seg_stem in segment_stems
+        ):
+            stem_hits += 1
+
+    phrase_bonus = 0.0
+    for first, second in zip(query_terms, query_terms[1:]):
+        if "{} {}".format(first, second) in segment_text:
+            phrase_bonus += 0.6
+
+    density_bonus = min(len(segment_terms), WINDOW_WORDS) / float(WINDOW_WORDS)
+    return (1.8 * exact_hits) + stem_hits + phrase_bonus + (0.15 * density_bonus)
+
+
+def _best_focus_phrases(text: str, query: str, max_phrases: int = 2) -> List[str]:
+    scored = []
+    for candidate in _sentence_candidates(text):
+        score = _segment_score(candidate, query)
+        if score <= 0:
+            continue
+        scored.append((score, candidate))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [candidate for _, candidate in scored[:max_phrases]]
+
+
+def _collect_spans(text: str, query: str, focus_phrases: List[str]) -> List[tuple]:
+    spans = []
+
+    for phrase in focus_phrases:
+        if not phrase:
+            continue
+        for match in re.finditer(re.escape(phrase), text, flags=re.IGNORECASE):
+            spans.append((match.start(), match.end(), "semantic"))
+
+    for term in sorted(_query_terms(query), key=len, reverse=True):
+        for match in re.finditer(re.escape(term), text, flags=re.IGNORECASE):
+            spans.append((match.start(), match.end(), "exact"))
+
+    if not spans:
+        return []
+
+    priority = {"semantic": 0, "exact": 1}
+    spans.sort(key=lambda item: (item[0], item[1] - item[0], priority[item[2]]))
+
+    merged = []
+    last_end = -1
+    for start, end, kind in spans:
+        if start < last_end:
+            continue
+        merged.append((start, end, kind))
+        last_end = end
+
+    return merged
+
+
+def _render_highlight_html(text: str, query: str, focus_phrases: List[str]) -> str:
+    clean_text = re.sub(r"\s+", " ", text).strip()
+    if not clean_text:
+        return ""
+
+    spans = _collect_spans(clean_text, query, focus_phrases)
+    if not spans:
+        return html.escape(clean_text)
+
+    parts = []
+    cursor = 0
+    for start, end, kind in spans:
+        if cursor < start:
+            parts.append(html.escape(clean_text[cursor:start]))
+
+        klass = "semantic-mark" if kind == "semantic" else ""
+        class_attr = ' class="{}"'.format(klass) if klass else ""
+        parts.append(
+            "<mark{}>{}</mark>".format(class_attr, html.escape(clean_text[start:end]))
+        )
+        cursor = end
+
+    if cursor < len(clean_text):
+        parts.append(html.escape(clean_text[cursor:]))
+
+    return "".join(parts)
 
 
 def _build_snippet(text: str, query: str, snippet_length: int = SNIPPET_LENGTH) -> Dict[str, str]:
@@ -42,11 +238,15 @@ def _build_snippet(text: str, query: str, snippet_length: int = SNIPPET_LENGTH) 
         return {"snippet": "", "snippet_html": ""}
 
     terms = _query_terms(query)
+    focus_phrases = _best_focus_phrases(clean_text, query, max_phrases=1)
     match = None
     for term in terms:
         match = re.search(re.escape(term), clean_text, flags=re.IGNORECASE)
         if match:
             break
+
+    if match is None and focus_phrases:
+        match = re.search(re.escape(focus_phrases[0]), clean_text, flags=re.IGNORECASE)
 
     if match:
         center = (match.start() + match.end()) // 2
@@ -63,16 +263,14 @@ def _build_snippet(text: str, query: str, snippet_length: int = SNIPPET_LENGTH) 
     if end < len(clean_text):
         snippet = snippet + "..."
 
-    snippet_html = html.escape(snippet)
-    for term in sorted(terms, key=len, reverse=True):
-        snippet_html = re.sub(
-            re.escape(html.escape(term)),
-            lambda m: "<mark>{}</mark>".format(m.group(0)),
-            snippet_html,
-            flags=re.IGNORECASE,
-        )
+    snippet_html = _render_highlight_html(snippet, query, focus_phrases)
+    full_text_html = _render_highlight_html(clean_text, query, _best_focus_phrases(clean_text, query))
 
-    return {"snippet": snippet, "snippet_html": snippet_html}
+    return {
+        "snippet": snippet,
+        "snippet_html": snippet_html,
+        "full_text_html": full_text_html,
+    }
 
 
 def _merge_results(vector_results: List[dict], fts_results: List[dict]) -> List[dict]:
@@ -110,7 +308,7 @@ def _merge_results(vector_results: List[dict], fts_results: List[dict]) -> List[
                 **row,
                 "vector_score": None,
                 "fts_score": row["score"],
-                "combined_score": 0.15 * boost,
+                "combined_score": 0.10 * boost,
                 "retrieval_methods": ["fts"],
                 "vector_rank": None,
                 "fts_rank": rank,
@@ -121,7 +319,7 @@ def _merge_results(vector_results: List[dict], fts_results: List[dict]) -> List[
         combined_row = combined[chunk_id]
         combined_row["fts_score"] = row["score"]
         combined_row["fts_rank"] = rank
-        combined_row["combined_score"] += 0.15 * boost
+        combined_row["combined_score"] += 0.10 * boost
         combined_row["retrieval_methods"].append("fts")
 
     return sorted(combined.values(), key=lambda row: row["combined_score"], reverse=True)
