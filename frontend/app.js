@@ -44,6 +44,39 @@ let loadingStatusStageIndex = 0;
 let loadingStatusDotTick = 0;
 const RESULTS_PER_PAGE = 10;
 const LOADING_STATUS_INTERVAL_MS = 500;
+const RANDOM_PLACEHOLDER_PROMPTS = [
+  "student protests on campus",
+  "poetry in the Maroon",
+  "housing shortages in Hyde Park",
+  "faculty debates about free speech",
+  "student reactions to the Vietnam War",
+  "women's organizing on campus",
+  "how the Maroon covered civil rights",
+  "music and jazz around the Midway",
+  "controversies around Robert Maynard Hutchins",
+  "what students wrote about nuclear anxiety",
+  "foreign speakers visiting the university",
+  "sports writing about the Phoenix",
+  "campus reactions to the draft",
+  "desegregation and university policy",
+  "student views on the Cold War",
+  "book reviews in the Maroon",
+  "theater productions on campus",
+  "May Day demonstrations at UChicago",
+  "student government controversies",
+  "tuition increases and student response",
+  "anti-war teach-ins",
+  "visiting poets and novelists",
+  "reports on labor organizing",
+  "campus coverage of the 1968 election",
+  "editorials about university expansion",
+  "student housing complaints",
+  "profiles of unusual student clubs",
+  "how the Maroon covered the energy crisis",
+  "articles about censorship or banned books",
+  "debates over campus dress codes",
+  "international students in the archives",
+];
 const SEARCH_LOADING_STAGES = [
   "Embedding query",
   "Searching archive",
@@ -64,6 +97,15 @@ function updateSamplingControls() {
   if (!sampleTopNInput.value) {
     sampleTopNInput.value = "100";
   }
+}
+
+function chooseRandomPlaceholderPrompt() {
+  if (!RANDOM_PLACEHOLDER_PROMPTS.length) {
+    return;
+  }
+
+  const promptIndex = Math.floor(Math.random() * RANDOM_PLACEHOLDER_PROMPTS.length);
+  queryInput.placeholder = `Try: ${RANDOM_PLACEHOLDER_PROMPTS[promptIndex]}`;
 }
 
 function setStatus(message) {
@@ -599,3 +641,4 @@ nextPageButton.addEventListener("click", () => {
 
 initializeYearFilter();
 updateSamplingControls();
+chooseRandomPlaceholderPrompt();

@@ -593,6 +593,8 @@ body {
   margin: 0;
   font-size: 1.2rem;
   line-height: 1.25;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .result-card p {
@@ -603,18 +605,20 @@ body {
 .result-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 16px;
   margin-bottom: 10px;
 }
 
 .result-kicker {
   color: var(--muted);
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  max-width: 45%;
   font-family: var(--mono);
   font-size: 0.8rem;
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .result-snippet {
@@ -631,7 +635,7 @@ body {
   white-space: pre-wrap;
   line-height: 1.55;
   margin-bottom: 14px;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
 }
 
 .snippet-toggle {
