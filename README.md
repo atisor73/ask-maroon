@@ -4,7 +4,6 @@
 This project enables users to search the Maroon archives dating from 1902-1985. Given a query, ask-maroon uses semantic embeddings to retrieve what it thinks to be the most relevant set of articles from the collection.
 
 https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb
-https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb.mov
 
 # Limitations
 This tool is not perfect, as digitizing the text files from pdfs involves some requisite amount of spelling error and noise. The poor quality of the OCR could be very sensitive to noise and spelling errors. Users are recommended to try extending their queries to include more relevant alternative keywords (i.e, bikes, bike, bicycles, cyclists, etc.).
