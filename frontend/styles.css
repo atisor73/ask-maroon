@@ -98,55 +98,37 @@ body {
 }
 
 .info-button {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 1px solid rgba(29, 29, 34, 0.18);
   border-radius: 999px;
   background: #fefefe;
-  color: var(--maroon);
+  color: rgb(120,120,120,1.0);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(37, 24, 26, 0.08);
+  /* box-shadow: 0 8px 18px rgba(37, 24, 26, 0.08); */
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 
 .info-button:hover,
 .info-button.is-active {
-  border-color: rgba(109, 16, 34, 0.45);
-  box-shadow: 0 10px 22px rgba(37, 24, 26, 0.14);
+  border: 1.3px solid rgba(109, 16, 34, 0.6);
+  /* border-color: rgba(109, 16, 34, 0.45);   */
+  /* box-shadow: 0 10px 22px rgba(37, 24, 26, 0.14); */
 }
 
-.info-button:hover {
-  transform: translateY(-1px);
-}
+/* .info-button:hover { */
+  /* transform: translateY(-1px); */
+/* } */
 
 .annotation-layer {
   position: absolute;
   inset: 0;
   z-index: 6;
   pointer-events: none;
-}
-
-.annotation-header {
-  position: absolute;
-  top: 4.6rem;
-  right: 1.5rem;
-  max-width: 18rem;
-  padding: 0.8rem 1rem;
-  border-radius: 5px;
-  border: 1px solid rgba(109, 16, 34, 0.18);
-  background: rgba(255, 251, 244, 0.92);
-  box-shadow: 0 10px 30px rgba(37, 24, 26, 0.12);
-}
-
-.annotation-header-copy {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.5;
 }
 
 .annotation-items {
@@ -164,22 +146,37 @@ body {
   pointer-events: auto;
   padding: 1rem 1.1rem;
   border-radius: 6px;
-  border: 1px solid rgba(109, 16, 34, 0.22);
+  border: 1px solid rgba(109, 16, 34, 0.42);
   background: rgba(255, 252, 245, 0.97);
+  /* background: rgba(244, 244, 244, 0.97); */
   box-shadow: 0 18px 38px rgba(37, 24, 26, 0.14);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.annotation-card.is-visible {
+  opacity: 1;
+}
+
+.annotation-step-label {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.7rem !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .annotation-card h2 {
-  margin: 0 0 0.45rem;
+  margin: 0.1rem 0 0.45rem !important;
   color: var(--maroon);
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .annotation-card p {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
@@ -192,12 +189,55 @@ body {
   pointer-events: auto;
 }
 
+.annotation-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 1rem;
+}
+
+.annotation-control-button {
+  border: 1px solid rgba(109, 16, 34, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--maroon);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.76rem;
+  font-family: var(--mono);
+  cursor: pointer;
+}
+
+.annotation-control-button:hover:not(:disabled) {
+  border-color: rgba(109, 16, 34, 0.52);
+}
+
+.annotation-control-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.annotation-control-button-secondary {
+  color: var(--muted);
+}
+
+.annotation-control-button-primary {
+  background: var(--maroon);
+  border-color: var(--maroon);
+  color: white;
+}
+
 .annotation-line {
   height: 2px;
   transform-origin: 0 50%;
   background: rgba(224, 181, 31, 0.95);
   box-shadow: 0 0 0 1px rgba(224, 181, 31, 0.12);
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.annotation-line.is-visible {
+  opacity: 1;
 }
 
 .annotation-dot {
@@ -205,10 +245,25 @@ body {
   height: 14px;
   margin-left: -7px;
   margin-top: -7px;
+  padding: 0;
   border-radius: 999px;
   background: #f0c929;
+  /* border: 2px solid rgba(109, 16, 34, 0.7); */
   border: 2px solid rgba(109, 16, 34, 0.7);
   box-shadow: 0 0 0 6px rgba(240, 201, 41, 0.18);
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.annotation-dot.is-visible {
+  opacity: 1;
+}
+
+.annotation-dot:focus-visible {
+  outline: 2px solid rgba(109, 16, 34, 0.7);
+  outline-offset: 3px;
 }
 
 .random-issue-link {
@@ -991,12 +1046,6 @@ body {
     position: static;
     margin: 0 0 18px;
     pointer-events: auto;
-  }
-
-  .annotation-header {
-    position: static;
-    max-width: none;
-    margin-bottom: 12px;
   }
 
   .annotation-items {

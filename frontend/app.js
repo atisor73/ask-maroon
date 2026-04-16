@@ -1,4 +1,4 @@
-import { UI_ANNOTATIONS } from "./faqContent.js";
+import { DEMO_QUERY, TOUR_STEPS } from "./faqContent.js";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
@@ -34,6 +34,7 @@ const collapseViewerEdge = document.querySelector("#collapse-viewer-edge");
 const infoButton = document.querySelector("#info-button");
 const annotationLayer = document.querySelector("#annotation-layer");
 const annotationItems = document.querySelector("#annotation-items");
+const advancedSearchCard = document.querySelector("#advanced-search-card");
 
 let selectedCard = null;
 let selectedDocId = null;
@@ -47,8 +48,13 @@ let currentUsedFallback = false;
 let loadingStatusTimer = null;
 let loadingStatusStageIndex = 0;
 let loadingStatusDotTick = 0;
+let activeTourStepIndex = -1;
+let tourRunToken = 0;
+let savedTourState = null;
+let introTourTyping = false;
 const RESULTS_PER_PAGE = 10;
 const LOADING_STATUS_INTERVAL_MS = 1000;
+const TOUR_TYPING_DELAY_MS = 45;
 const RANDOM_PLACEHOLDER_PROMPTS = [
   "student protests on campus",
   "housing shortages in Hyde Park",
@@ -90,36 +96,70 @@ const SEARCH_LOADING_STAGES = [
 ];
 const SEARCH_LOADING_STAGE_DOT_COUNTS = [10, 10, Infinity];
 
-function buildAnnotationMarkup(annotation) {
+function sleep(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function setSearchModeValue(mode) {
+  const modeInput = document.querySelector(`#search-mode-${mode}`);
+  if (!modeInput) {
+    return;
+  }
+
+  modeInput.checked = true;
+  updateSamplingControls();
+}
+
+function buildAnnotationMarkup(step) {
+  const isFirstStep = activeTourStepIndex === 0;
+  const isLastStep = activeTourStepIndex === TOUR_STEPS.length - 1;
+
   return `
-    <article
-      class="annotation-card"
-      data-annotation-card="${annotation.id}"
-    >
-      <h2>${escapeHtml(annotation.title)}</h2>
-      <p>${escapeHtml(annotation.text)}</p>
+    <article class="annotation-card" data-annotation-card="${step.id}">
+      <p class="annotation-step-label">Step ${activeTourStepIndex + 1} of ${TOUR_STEPS.length}</p>
+      <h2>${escapeHtml(step.title)}</h2>
+      <p>${escapeHtml(step.text)}</p>
       ${
-        annotation.linkHref
-          ? `<a class="annotation-link" href="${escapeHtml(annotation.linkHref)}" target="_blank" rel="noreferrer">${escapeHtml(annotation.linkLabel)}</a>`
+        step.linkHref
+          ? `<a class="annotation-link" href="${escapeHtml(step.linkHref)}" target="_blank" rel="noreferrer">${escapeHtml(step.linkLabel)}</a>`
           : ""
       }
+      <div class="annotation-controls">
+        <button class="annotation-control-button" type="button" data-tour-action="back"${isFirstStep ? " disabled" : ""}>Back</button>
+        <button class="annotation-control-button annotation-control-button-secondary" type="button" data-tour-action="skip">Skip</button>
+        <button class="annotation-control-button annotation-control-button-primary" type="button" data-tour-action="next">${isLastStep ? "Finish" : "Next"}</button>
+      </div>
     </article>
-    <span
+    <button
       class="annotation-dot"
-      data-annotation-dot="${annotation.id}"
-      aria-hidden="true"
-    ></span>
+      data-annotation-dot="${step.id}"
+      type="button"
+      aria-label="Advance guided tour"
+    ></button>
     <span
       class="annotation-line"
-      data-annotation-line="${annotation.id}"
+      data-annotation-line="${step.id}"
       aria-hidden="true"
     ></span>
   `;
 }
 
 function renderAnnotationLayer() {
-  annotationItems.innerHTML = UI_ANNOTATIONS.map(buildAnnotationMarkup).join("");
+  if (activeTourStepIndex < 0 || activeTourStepIndex >= TOUR_STEPS.length) {
+    annotationItems.innerHTML = "";
+    return;
+  }
+
+  annotationItems.innerHTML = buildAnnotationMarkup(TOUR_STEPS[activeTourStepIndex]);
+  wireAnnotationControls();
   positionAnnotations();
+  window.requestAnimationFrame(() => {
+    annotationItems.querySelector(".annotation-card")?.classList.add("is-visible");
+    annotationItems.querySelector(".annotation-line")?.classList.add("is-visible");
+    annotationItems.querySelector(".annotation-dot")?.classList.add("is-visible");
+  });
 }
 
 function positionAnnotations() {
@@ -129,56 +169,242 @@ function positionAnnotations() {
 
   const containerRect = annotationItems.getBoundingClientRect();
   const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const step = TOUR_STEPS[activeTourStepIndex];
 
-  UI_ANNOTATIONS.forEach((annotation) => {
-    const card = annotationItems.querySelector(`[data-annotation-card="${annotation.id}"]`);
-    const dot = annotationItems.querySelector(`[data-annotation-dot="${annotation.id}"]`);
-    const line = annotationItems.querySelector(`[data-annotation-line="${annotation.id}"]`);
+  if (!step) {
+    return;
+  }
 
-    if (!card || !dot || !line) {
-      return;
+  const card = annotationItems.querySelector(`[data-annotation-card="${step.id}"]`);
+  const dot = annotationItems.querySelector(`[data-annotation-dot="${step.id}"]`);
+  const line = annotationItems.querySelector(`[data-annotation-line="${step.id}"]`);
+
+  if (!card || !dot || !line) {
+    return;
+  }
+
+  const cardLeft = (containerRect.width * step.leftPct) / 100;
+  const cardTop = step.topRem * rootFontSize;
+  const cardWidth = step.widthRem * rootFontSize;
+  const dotLeft = (containerRect.width * step.dotLeftPct) / 100;
+  const dotTop = step.dotTopRem * rootFontSize;
+
+  card.style.left = `${cardLeft}px`;
+  card.style.top = `${cardTop}px`;
+  card.style.width = `${cardWidth}px`;
+  dot.style.left = `${dotLeft}px`;
+  dot.style.top = `${dotTop}px`;
+
+  const cardRect = card.getBoundingClientRect();
+  const endX = dotLeft;
+  const endY = dotTop;
+  const { startX, startY } = resolveCardAnchorPoint(step, cardRect, containerRect, endX, endY);
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const length = Math.hypot(deltaX, deltaY);
+  const angle = Math.atan2(deltaY, deltaX);
+
+  line.style.left = `${startX}px`;
+  line.style.top = `${startY}px`;
+  line.style.width = `${length}px`;
+  line.style.transform = `rotate(${angle}rad)`;
+}
+
+function resolveCardAnchorPoint(step, cardRect, containerRect, endX, endY) {
+  const offsetLeft = cardRect.left - containerRect.left;
+  const offsetTop = cardRect.top - containerRect.top;
+  const mode = step.cardAnchorMode || "manual";
+
+  if (mode === "closest") {
+    const closestX = Math.max(offsetLeft, Math.min(endX, offsetLeft + cardRect.width));
+    const closestY = Math.max(offsetTop, Math.min(endY, offsetTop + cardRect.height));
+    return { startX: closestX, startY: closestY };
+  }
+
+  if (mode === "horizontal") {
+    const startX = endX < offsetLeft + cardRect.width / 2 ? offsetLeft : offsetLeft + cardRect.width;
+    const startY = Math.max(offsetTop, Math.min(endY, offsetTop + cardRect.height));
+    return { startX, startY };
+  }
+
+  const anchorX = step.cardAnchorX || "center";
+  const anchorY = step.cardAnchorY || "center";
+  const startX =
+    offsetLeft + (anchorX === "left" ? 0 : anchorX === "right" ? cardRect.width : cardRect.width / 2);
+  const startY =
+    offsetTop + (anchorY === "top" ? 0 : anchorY === "bottom" ? cardRect.height : cardRect.height / 2);
+  return { startX, startY };
+}
+
+function wireAnnotationControls() {
+  const actionButtons = annotationItems.querySelectorAll("[data-tour-action]");
+  const dotButton = annotationItems.querySelector(".annotation-dot");
+
+  actionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (introTourTyping) {
+        return;
+      }
+      const action = button.getAttribute("data-tour-action");
+      if (action === "back") {
+        moveTourStep(-1);
+      } else if (action === "next") {
+        moveTourStep(1);
+      } else if (action === "skip") {
+        closeTour();
+      }
+    });
+  });
+
+  if (dotButton) {
+    dotButton.addEventListener("click", () => {
+      if (introTourTyping) {
+        return;
+      }
+      moveTourStep(1);
+    });
+    dotButton.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (introTourTyping) {
+          return;
+        }
+        moveTourStep(1);
+      }
+    });
+  }
+}
+
+function saveTourState() {
+  savedTourState = {
+    queryValue: queryInput.value,
+    searchMode: selectedSearchMode(),
+    advancedOpen: advancedSearchCard.open,
+  };
+}
+
+function restoreTourState() {
+  if (!savedTourState) {
+    return;
+  }
+
+  queryInput.value = savedTourState.queryValue;
+  advancedSearchCard.open = savedTourState.advancedOpen;
+  setSearchModeValue(savedTourState.searchMode);
+  savedTourState = null;
+}
+
+function syncTourStepUi(step) {
+  advancedSearchCard.open = Boolean(step.openAdvanced);
+  setSearchModeValue(step.mode || "greedy");
+}
+
+async function typeDemoQuery(runToken) {
+  queryInput.focus();
+  queryInput.value = "";
+
+  for (const character of DEMO_QUERY) {
+    if (runToken !== tourRunToken || annotationLayer.hidden) {
+      return false;
     }
 
-    const cardLeft = (containerRect.width * annotation.leftPct) / 100;
-    const cardTop = annotation.topRem * rootFontSize;
-    const cardWidth = annotation.widthRem * rootFontSize;
-    const dotLeft = (containerRect.width * annotation.dotLeftPct) / 100;
-    const dotTop = annotation.dotTopRem * rootFontSize;
+    queryInput.value += character;
+    await sleep(TOUR_TYPING_DELAY_MS);
+  }
 
-    card.style.left = `${cardLeft}px`;
-    card.style.top = `${cardTop}px`;
-    card.style.width = `${cardWidth}px`;
-    dot.style.left = `${dotLeft}px`;
-    dot.style.top = `${dotTop}px`;
+  return true;
+}
 
-    const cardRect = card.getBoundingClientRect();
-    const startX = cardRect.left + cardRect.width / 2 - containerRect.left;
-    const startY = cardRect.top + cardRect.height / 2 - containerRect.top;
-    const endX = dotLeft;
-    const endY = dotTop;
-    const deltaX = endX - startX;
-    const deltaY = endY - startY;
-    const length = Math.hypot(deltaX, deltaY);
-    const angle = Math.atan2(deltaY, deltaX);
+function openTourAtStep(stepIndex) {
+  if (stepIndex < 0 || stepIndex >= TOUR_STEPS.length) {
+    return;
+  }
 
-    line.style.left = `${startX}px`;
-    line.style.top = `${startY}px`;
-    line.style.width = `${length}px`;
-    line.style.transform = `rotate(${angle}rad)`;
-  });
+  activeTourStepIndex = stepIndex;
+  syncTourStepUi(TOUR_STEPS[stepIndex]);
+  renderAnnotationLayer();
+}
+
+function moveTourStep(direction) {
+  const nextStepIndex = activeTourStepIndex + direction;
+
+  if (nextStepIndex < 0) {
+    return;
+  }
+
+  if (nextStepIndex >= TOUR_STEPS.length) {
+    closeTour();
+    return;
+  }
+
+  openTourAtStep(nextStepIndex);
+}
+
+async function startTour() {
+  tourRunToken += 1;
+  const runToken = tourRunToken;
+  saveTourState();
+  document.body.classList.add("tour-active");
+  annotationLayer.hidden = false;
+  infoButton.setAttribute("aria-expanded", "true");
+  infoButton.classList.add("is-active");
+  introTourTyping = true;
+  openTourAtStep(0);
+  const finishedTyping = await typeDemoQuery(runToken);
+  introTourTyping = false;
+
+  if (!finishedTyping || runToken !== tourRunToken || annotationLayer.hidden) {
+    return;
+  }
+}
+
+function closeTour() {
+  tourRunToken += 1;
+  activeTourStepIndex = -1;
+  introTourTyping = false;
+  annotationItems.innerHTML = "";
+  annotationLayer.hidden = true;
+  infoButton.setAttribute("aria-expanded", "false");
+  infoButton.classList.remove("is-active");
+  document.body.classList.remove("tour-active");
+  restoreTourState();
 }
 
 function setAnnotationLayerOpen(isOpen) {
-  annotationLayer.hidden = !isOpen;
-  infoButton.setAttribute("aria-expanded", String(isOpen));
-  infoButton.classList.toggle("is-active", isOpen);
   if (isOpen) {
-    positionAnnotations();
+    startTour();
+  } else {
+    closeTour();
   }
 }
 
 function toggleAnnotationLayer() {
   setAnnotationLayerOpen(annotationLayer.hidden);
+}
+
+function handleTourKeydown(event) {
+  if (annotationLayer.hidden) {
+    return;
+  }
+
+  if (activeTourStepIndex < 0 || introTourTyping) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeTour();
+    }
+    return;
+  }
+
+  if (event.key === "ArrowRight" || event.key === "Enter") {
+    event.preventDefault();
+    moveTourStep(1);
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    moveTourStep(-1);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    closeTour();
+  }
 }
 
 // Return the currently selected search mode from the advanced-search radio buttons.
@@ -773,8 +999,8 @@ nextPageButton.addEventListener("click", () => {
 window.addEventListener("resize", () => {
   positionAnnotations();
 });
+window.addEventListener("keydown", handleTourKeydown);
 
 initializeYearFilter();
 updateSamplingControls();
 chooseRandomPlaceholderPrompt();
-renderAnnotationLayer();
