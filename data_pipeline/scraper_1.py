@@ -1,6 +1,10 @@
 from urllib.parse import urlparse, parse_qs
 import json
 import tqdm
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = ROOT / "output"
 
 def extract_doc_id(url):
     query = urlparse(url).query
@@ -45,7 +49,7 @@ def build_doc_record(doc_url):
 
 
 if __name__ == '__main__':
-    with open("output/links.json") as f:
+    with (OUTPUT_DIR / "links.json").open() as f:
         doc_links = json.load(f)
     
     docs = []
@@ -55,7 +59,7 @@ if __name__ == '__main__':
         if record:
             docs.append(record)
     
-    with open("output/documents.json", "w") as f:
+    with (OUTPUT_DIR / "documents.json").open("w") as f:
         json.dump(docs, f, indent=2)
 
         
