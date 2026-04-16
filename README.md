@@ -45,8 +45,6 @@ Expand PDF for better command F search experience
 
 
 # To-do's
-- Make .mov demo: "music and jazz around the midway"
-
 - A. Add baseline stats to README/info: get year range, total number of documents, number of documents per year (make histogram), 
   
 - E. Search for 'typical set':
