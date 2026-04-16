@@ -1,7 +1,0 @@
-output/*
-output-backup/*
-*.pdf
-output/*.txt
-.env
-imgs/demo.mov
-.venv/*
