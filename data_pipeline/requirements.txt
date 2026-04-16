@@ -1,6 +1,7 @@
 requests
 beautifulsoup4
 tqdm
+boto3
 numpy
 python-dotenv
 openai

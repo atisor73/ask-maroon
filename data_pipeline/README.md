@@ -39,6 +39,7 @@ Individual files contain docstrings that go into more detail on their methodolog
 
 `scraper_2.py`
 - output/pdfs/...: pdf of old archives
+- can also run in R2 upload mode from Hetzner using temporary local files only
 
 `clean_text.py`
 - output/plain_text_cleaned/
@@ -64,3 +65,22 @@ python3 embed_text.py --backend both --limit 200
 - ouptut/metadata/chunks.db
 - ouptut/page_text_cache/*
 
+# R2 scraping mode
+If Hetzner does not have enough disk to store the whole corpus locally, `scraper_2.py` can now scrape the same source URLs and upload directly to Cloudflare R2.
+
+Required environment variables in `.env`:
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
+- optional: `R2_ENDPOINT_URL`
+
+Example:
+```bash
+python3 scraper_2.py --mode r2 --r2-prefix maroon-archives --temp-dir /tmp/maroon-cache
+```
+
+Behavior:
+- In `--mode r2`, each PDF/text file is downloaded to a temporary local path, uploaded to R2, then deleted locally.
+- Existing R2 objects are skipped by default using an object existence check.
+- Pass `--force` if you intentionally want to overwrite objects already in the bucket.
