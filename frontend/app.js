@@ -6,6 +6,7 @@ const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
 const backendSelect = document.querySelector("#backend-select");
 const limitInput = document.querySelector("#limit-input");
+const searchButton = document.querySelector(".search-button");
 const searchModeInputs = document.querySelectorAll('input[name="search-mode"]');
 const sampleTopNInput = document.querySelector("#sample-top-n-input");
 const temperatureInput = document.querySelector("#temperature-input");
@@ -55,6 +56,7 @@ let introTourTyping = false;
 const RESULTS_PER_PAGE = 10;
 const LOADING_STATUS_INTERVAL_MS = 1000;
 const TOUR_TYPING_DELAY_MS = 45;
+const TOUR_SEARCH_PRESS_MS = 320;
 const RANDOM_PLACEHOLDER_PROMPTS = [
   "student protests on campus",
   "housing shortages in Hyde Park",
@@ -325,7 +327,17 @@ function openTourAtStep(stepIndex) {
   renderAnnotationLayer();
 }
 
-function moveTourStep(direction) {
+async function animateTourSearchButton() {
+  if (!searchButton) {
+    return;
+  }
+
+  searchButton.classList.add("is-tour-pressed");
+  await sleep(TOUR_SEARCH_PRESS_MS);
+  searchButton.classList.remove("is-tour-pressed");
+}
+
+async function moveTourStep(direction) {
   const nextStepIndex = activeTourStepIndex + direction;
 
   if (nextStepIndex < 0) {
@@ -335,6 +347,10 @@ function moveTourStep(direction) {
   if (nextStepIndex >= TOUR_STEPS.length) {
     closeTour();
     return;
+  }
+
+  if (direction > 0 && activeTourStepIndex === 3 && nextStepIndex === 4) {
+    await animateTourSearchButton();
   }
 
   openTourAtStep(nextStepIndex);

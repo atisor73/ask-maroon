@@ -144,14 +144,14 @@ body {
 
 .annotation-card {
   pointer-events: auto;
-  padding: 1rem 1.1rem;
-  border-radius: 6px;
+  padding: 0.7rem 0.8rem;
+  border-radius: 2px;
   border: 1px solid rgba(109, 16, 34, 0.42);
   background: rgba(255, 252, 245, 0.97);
   /* background: rgba(244, 244, 244, 0.97); */
   box-shadow: 0 18px 38px rgba(37, 24, 26, 0.14);
   opacity: 0;
-  transition: opacity 220ms ease;
+  transition: opacity 460ms ease;
 }
 
 .annotation-card.is-visible {
@@ -159,15 +159,16 @@ body {
 }
 
 .annotation-step-label {
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.55rem;
   color: var(--muted);
   font-size: 0.7rem !important;
   letter-spacing: 0.08em;
+  text-align: right;
   text-transform: uppercase;
 }
 
 .annotation-card h2 {
-  margin: 0.1rem 0 0.45rem !important;
+  margin: 0.05rem 0 0.28rem !important;
   color: var(--maroon);
   font-size: 0.84rem;
   letter-spacing: 0.16em;
@@ -176,15 +177,15 @@ body {
 
 .annotation-card p {
   margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .annotation-link {
   display: inline-block;
-  margin-top: 0.85rem;
+  margin-top: 0.55rem;
   color: var(--maroon);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-family: var(--mono);
   pointer-events: auto;
 }
@@ -192,8 +193,8 @@ body {
 .annotation-controls {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 1rem;
+  gap: 6px;
+  margin-top: 0.7rem;
 }
 
 .annotation-control-button {
@@ -201,8 +202,10 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.84);
   color: var(--maroon);
-  padding: 0.45rem 0.9rem;
-  font-size: 0.76rem;
+  padding: 0.28rem 0.58rem;
+  min-width: 3.2rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
   font-family: var(--mono);
   cursor: pointer;
 }
@@ -226,6 +229,12 @@ body {
   color: white;
 }
 
+.search-button.is-tour-pressed {
+  transform: translateY(1px) scale(0.985);
+  filter: brightness(0.96);
+  box-shadow: inset 0 0 0 1px rgba(109, 16, 34, 0.26);
+}
+
 .annotation-line {
   height: 2px;
   transform-origin: 0 50%;
@@ -233,7 +242,7 @@ body {
   box-shadow: 0 0 0 1px rgba(224, 181, 31, 0.12);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 220ms ease;
+  transition: opacity 460ms ease;
 }
 
 .annotation-line.is-visible {
@@ -254,7 +263,7 @@ body {
   pointer-events: auto;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 220ms ease;
+  transition: opacity 460ms ease;
 }
 
 .annotation-dot.is-visible {
