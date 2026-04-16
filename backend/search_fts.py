@@ -34,13 +34,32 @@ def _build_safe_match_query(query: str) -> str:
     return " OR ".join('"{}"'.format(term) for term in terms)
 
 
+def _build_exact_phrase_match_query(query: str) -> str:
+    """
+    Build an exact-phrase FTS5 query from user text.
+
+    We normalize whitespace and strip punctuation down to alphanumeric terms so
+    that quoted-search boosts are still resilient to light punctuation noise.
+    """
+    terms = re.findall(r"[A-Za-z0-9]+", query.lower())
+    terms = [term for term in terms if len(term) >= 2]
+    if not terms:
+        return ""
+    return '"{}"'.format(" ".join(terms))
+
+
 def search_fts(
     query: str,
     limit: int = 10,
     start_year: Optional[int] = None,
     end_year: Optional[int] = None,
+    exact_phrase: bool = False,
 ) -> List[dict]:
-    match_query = _build_safe_match_query(query)
+    match_query = (
+        _build_exact_phrase_match_query(query)
+        if exact_phrase
+        else _build_safe_match_query(query)
+    )
     if not match_query:
         return []
 

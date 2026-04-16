@@ -88,8 +88,7 @@ const RANDOM_PLACEHOLDER_PROMPTS = [
   "articles about censorship or banned books",
   "debates over campus dress codes",
   "international students in the archives",
-  "kuvia",
-  "yarn"
+  "yarn knitting sweater fiber quilts"
 ];
 const SEARCH_LOADING_STAGES = [
   "Embedding query",

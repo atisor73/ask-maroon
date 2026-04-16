@@ -15,6 +15,10 @@ except ImportError:
 SNIPPET_LENGTH = 280
 WINDOW_WORDS = 24
 WINDOW_STRIDE = 12
+BASE_FTS_BOOST = 0.10
+QUOTED_FTS_BOOST = 0.40
+QUOTED_PHRASE_TEXT_BONUS = 0.20
+QUOTED_TERM_COVERAGE_BONUS = 0.05
 STOPWORDS = {
     "about",
     "after",
@@ -61,6 +65,20 @@ STOPWORDS = {
 }
 
 
+def _quoted_spans(query: str) -> List[str]:
+    spans = []
+    seen = set()
+
+    for raw_span in re.findall(r'"([^"]+)"', query):
+        normalized = " ".join(re.findall(r"[A-Za-z0-9]+", raw_span.lower())).strip()
+        if len(normalized) < 2 or normalized in seen:
+            continue
+        seen.add(normalized)
+        spans.append(normalized)
+
+    return spans
+
+
 def _query_terms(query: str) -> List[str]:
     """
     Extract basic query terms for snippet generation/highlighting.
@@ -72,6 +90,73 @@ def _query_terms(query: str) -> List[str]:
     """
     terms = re.findall(r"[A-Za-z0-9]+", query.lower())
     return [term for term in terms if len(term) >= 3]
+
+
+def _quoted_span_bonus(text: str, quoted_spans: List[str]) -> float:
+    if not quoted_spans:
+        return 0.0
+
+    normalized_text = " ".join(re.findall(r"[A-Za-z0-9]+", text.lower()))
+    if not normalized_text:
+        return 0.0
+
+    bonus = 0.0
+    for span in quoted_spans:
+        span_terms = span.split()
+        if not span_terms:
+            continue
+
+        exact_matches = len(re.findall(r"\b{}\b".format(re.escape(span)), normalized_text))
+        if exact_matches:
+            bonus += QUOTED_PHRASE_TEXT_BONUS * min(exact_matches, 2)
+            continue
+
+        if all(re.search(r"\b{}\b".format(re.escape(term)), normalized_text) for term in span_terms):
+            bonus += QUOTED_TERM_COVERAGE_BONUS
+
+    return bonus
+
+
+def _search_quoted_spans(
+    quoted_spans: List[str],
+    limit: int,
+    start_year: Optional[int],
+    end_year: Optional[int],
+) -> List[dict]:
+    if not quoted_spans:
+        return []
+
+    aggregated: Dict[str, dict] = {}
+    per_span_limit = max(5, limit)
+
+    for span in quoted_spans:
+        for rank, row in enumerate(
+            search_fts(
+                span,
+                limit=per_span_limit,
+                start_year=start_year,
+                end_year=end_year,
+                exact_phrase=True,
+            )
+        ):
+            chunk_id = row["chunk_id"]
+            entry = aggregated.get(chunk_id)
+            if entry is None:
+                aggregated[chunk_id] = {
+                    **row,
+                    "quoted_rank": rank,
+                    "matched_quoted_spans": [span],
+                }
+                continue
+
+            entry["quoted_rank"] = min(entry["quoted_rank"], rank)
+            if span not in entry["matched_quoted_spans"]:
+                entry["matched_quoted_spans"].append(span)
+
+    return sorted(
+        aggregated.values(),
+        key=lambda row: (row["quoted_rank"], row["score"]),
+    )
 
 
 def _stem_token(token: str) -> str:
@@ -277,7 +362,12 @@ def _build_snippet(text: str, query: str, snippet_length: int = SNIPPET_LENGTH) 
     }
 
 
-def _merge_results(vector_results: List[dict], fts_results: List[dict]) -> List[dict]:
+def _merge_results(
+    vector_results: List[dict],
+    fts_results: List[dict],
+    quoted_fts_results: List[dict],
+    quoted_spans: List[str],
+) -> List[dict]:
     """
     Merge chunk-level vector and FTS hits into one ranked list.
 
@@ -312,7 +402,7 @@ def _merge_results(vector_results: List[dict], fts_results: List[dict]) -> List[
                 **row,
                 "vector_score": None,
                 "fts_score": row["score"],
-                "combined_score": 0.10 * boost,
+                "combined_score": BASE_FTS_BOOST * boost,
                 "retrieval_methods": ["fts"],
                 "vector_rank": None,
                 "fts_rank": rank,
@@ -323,8 +413,35 @@ def _merge_results(vector_results: List[dict], fts_results: List[dict]) -> List[
         combined_row = combined[chunk_id]
         combined_row["fts_score"] = row["score"]
         combined_row["fts_rank"] = rank
-        combined_row["combined_score"] += 0.10 * boost
+        combined_row["combined_score"] += BASE_FTS_BOOST * boost
         combined_row["retrieval_methods"].append("fts")
+
+    for row in quoted_fts_results:
+        chunk_id = row["chunk_id"]
+        rank = row["quoted_rank"]
+        boost = 1.0 / (rank + 1)
+
+        if chunk_id not in combined:
+            combined[chunk_id] = {
+                **row,
+                "vector_score": None,
+                "fts_score": None,
+                "combined_score": QUOTED_FTS_BOOST * boost,
+                "retrieval_methods": ["quoted-fts"],
+                "vector_rank": None,
+                "fts_rank": None,
+                "embedding_backend": None,
+            }
+            continue
+
+        combined_row = combined[chunk_id]
+        combined_row["combined_score"] += QUOTED_FTS_BOOST * boost
+        combined_row["retrieval_methods"] = list(
+            dict.fromkeys(combined_row["retrieval_methods"] + ["quoted-fts"])
+        )
+
+    for row in combined.values():
+        row["combined_score"] += _quoted_span_bonus(row.get("text", ""), quoted_spans)
 
     return sorted(combined.values(), key=lambda row: row["combined_score"], reverse=True)
 
@@ -427,7 +544,14 @@ def search(
         start_year=start_year,
         end_year=end_year,
     )
-    merged_chunks = _merge_results(vector_results, fts_results)
+    quoted_spans = _quoted_spans(query)
+    quoted_fts_results = _search_quoted_spans(
+        quoted_spans,
+        limit=max(fts_k, limit),
+        start_year=start_year,
+        end_year=end_year,
+    )
+    merged_chunks = _merge_results(vector_results, fts_results, quoted_fts_results, quoted_spans)
 
     for row in merged_chunks:
         row.update(_build_snippet(row["text"], query))

@@ -7,7 +7,7 @@ export const TOUR_STEPS = [
     id: "query-guide",
     title: "Search here first",
     text:
-      "Type a concept, event, person, or phrase. The model embeds your query, compares it with embedded archive chunks, and ranks the closest matches.",
+      "Type a concept, event, person, or phrase. The model embeds your query, compares it with embedded archive chunks, and ranks the closest matches. ",
     mode: "greedy",
     openAdvanced: false,
     leftPct: 41,
