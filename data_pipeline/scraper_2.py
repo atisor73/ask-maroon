@@ -28,6 +28,7 @@ DEFAULT_R2_PREFIX = "archive"
 DEFAULT_TEMP_DIR = Path(tempfile.gettempdir()) / "maroon-r2-cache"
 DEFAULT_TIMEOUT = 15
 DEFAULT_MAX_RETRIES = 5
+DEFAULT_VERIFY_RETRIES = 5
 
 
 def parse_args() -> argparse.Namespace:
@@ -211,6 +212,20 @@ def log_r2_event(enabled: bool, message: str) -> None:
         tqdm.write(message)
 
 
+def verify_object_exists_r2(
+    client,
+    bucket: str,
+    object_key: str,
+    *,
+    max_retries: int = DEFAULT_VERIFY_RETRIES,
+) -> bool:
+    for attempt in range(max_retries):
+        if object_exists_r2(client, bucket, object_key):
+            return True
+        time.sleep(0.5 * (attempt + 1))
+    return False
+
+
 def download_and_upload_pdf(
     client,
     bucket: str,
@@ -230,6 +245,9 @@ def download_and_upload_pdf(
         if not download_pdf_to_path(url, temp_path, overwrite=True):
             return False
         upload_file_to_r2(client, bucket, temp_path, object_key)
+        if not verify_object_exists_r2(client, bucket, object_key):
+            log_r2_event(print_r2_logs, f"[R2 VERIFY FAILED PDF] s3://{bucket}/{object_key}")
+            return False
         log_r2_event(print_r2_logs, f"[R2 UPLOAD PDF] s3://{bucket}/{object_key}")
         return True
     finally:
@@ -256,6 +274,9 @@ def download_and_upload_text(
         if not download_text_to_path(url, temp_path, overwrite=True):
             return False
         upload_file_to_r2(client, bucket, temp_path, object_key)
+        if not verify_object_exists_r2(client, bucket, object_key):
+            log_r2_event(print_r2_logs, f"[R2 VERIFY FAILED TEXT] s3://{bucket}/{object_key}")
+            return False
         log_r2_event(print_r2_logs, f"[R2 UPLOAD TEXT] s3://{bucket}/{object_key}")
         return True
     finally:
