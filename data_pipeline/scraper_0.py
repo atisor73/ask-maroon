@@ -6,6 +6,11 @@ import tqdm
 import time
 import random
 import json
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = ROOT / "output"
 
 
 def get_pagination_links(html):
@@ -58,12 +63,12 @@ def fetch_with_retries(url, max_retries=5, base_delay=1):
 
 
 def save_progress(all_links, failed_pages):
-    os.makedirs("output", exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    with open("output/links.json", "w") as f:
+    with (OUTPUT_DIR / "links.json").open("w") as f:
         json.dump(list(set(all_links)), f)
     
-    with open("output/failed_pages.json", "w") as f:
+    with (OUTPUT_DIR / "failed_pages.json").open("w") as f:
         json.dump(failed_pages, f)
 
 
