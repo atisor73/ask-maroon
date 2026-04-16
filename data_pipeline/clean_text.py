@@ -1,3 +1,25 @@
+"""
+Prepare cleaned document text from raw archive extractions.
+
+Given the raw plain-text output of PDF/OCR extraction, this script fixes common
+character- and spacing-level errors, conservatively splits likely glued words,
+and produces cleaner text files for chunking, embedding, and full-text search.
+
+Note: The tokenizing you see here is not in the model-token sense, but instead
+a regex-based text splitting so clean word-like pieces can be selectively split.
+The key line is: parts = TOKEN_RE.findall(normalized).
+This breaks the text into alternating chunks: word-like alphabetic tokens,
+everything else, like punctuation, spaces, newlines, numbers, symbols.
+Ex: for "Hutchins,saidTheStudents", it can inspect the alphabetic parts and decide
+whether a word looks suspicious.
+
+clean_word() then uses wordsegment.segment(...) on the lowercase token.
+This is a word segmentation tool that splits glued text like 'inthe' -> 'in the'
+The code is conservative: it only accepts the split if should_segment(...) thinks 
+it looks plausible otherwise it keeps the original token.
+"""
+
+
 import re
 from pathlib import Path
 
@@ -44,6 +66,7 @@ COMMON_SMALL_WORDS = {
 }
 
 
+# Normalize raw OCR/extracted text by fixing line breaks, broken characters, ligatures, and missing spaces.
 def normalize_raw_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     # Fix OCR line-break hyphenation like "Hutch¬\nins" or "Hutch-\nins".
@@ -60,7 +83,7 @@ def normalize_raw_text(text: str) -> str:
     text = WORD_TO_OPEN_PAREN_RE.sub(" ", text)
     return text
 
-
+# Decide whether a token looks like a glued OCR word that should be split into multiple words.
 def should_segment(token: str, pieces: list[str]) -> bool:
     if token != token.lower():
         return False
@@ -82,7 +105,7 @@ def should_segment(token: str, pieces: list[str]) -> bool:
     )
     return (has_small_word and has_substantial_tail) or looks_like_two_words
 
-
+# Reapply the original token’s capitalization style after splitting it into multiple words.
 def preserve_case(token: str, pieces: list[str]) -> str:
     if token.isupper():
         return " ".join(piece.upper() for piece in pieces)
@@ -90,7 +113,7 @@ def preserve_case(token: str, pieces: list[str]) -> str:
         return " ".join(piece.title() for piece in pieces)
     return " ".join(pieces)
 
-
+# Clean a single word token by conservatively splitting likely OCR-glued words when appropriate.
 def clean_word(token: str) -> str:
     lowered = token.lower()
 
@@ -102,7 +125,7 @@ def clean_word(token: str) -> str:
 
     return preserve_case(token, pieces)
 
-
+# Clean a full text document by normalizing OCR artifacts, processing word tokens, and tidying whitespace.
 def clean_text(text: str) -> str:
     normalized = normalize_raw_text(text)
     parts = TOKEN_RE.findall(normalized)
@@ -120,7 +143,7 @@ def clean_text(text: str) -> str:
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip() + "\n"
 
-
+# Read one raw plain-text file, clean its contents, and write the cleaned version to the mirrored output path.
 def process_file(input_path: Path) -> None:
     relative = input_path.relative_to(INPUT_DIR)
     output_path = OUTPUT_DIR / relative
@@ -131,6 +154,7 @@ def process_file(input_path: Path) -> None:
     output_path.write_text(cleaned, encoding="utf-8")
 
 
+# Orchestrate text cleaning for the full corpus by processing every plain-text file into the cleaned-text directory.
 def main() -> None:
     load()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

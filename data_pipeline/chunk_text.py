@@ -1,3 +1,26 @@
+"""
+Create the chunk-level text corpus used by archive search.
+
+Given cleaned plain-text files and document metadata, this script normalizes
+text, splits it into overlapping chunks, and writes those chunks to chunks.db.
+It also builds an FTS5 table so the same chunk corpus can support keyword
+search in addition to embedding-based retrieval.
+
+Methodology:
+Chunks are created by approximate word count, using whitespace-based counting 
+and simple sentence/paragraph heuristics, not by character-count or model tokens.
+
+The pipeline is basically
+- Get documents with text paths from archive.db
+- Map each original text file to its cleaned version
+- Read cleaned text
+- Normalize spacing a bit more
+- Split into paragraph/sentence-sized units
+- Assemble those units into overlapping chunks
+- Each chunk is about 500 words with 75 words overlapping in between chunks
+- Write the chunks into chunks.db and chunks_fts
+"""
+
 import re
 import sqlite3
 from pathlib import Path
@@ -18,14 +41,14 @@ OVERLAP_WORDS = 75
 WORD_RE = re.compile(r"\S+")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
-
+# Normalize raw text spacing and line breaks so chunking operates on a cleaner, more consistent input.
 def normalize_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
-
+# Split a document into paragraph- or sentence-sized units that can be assembled into chunks.
 def split_units(text: str) -> List[str]:
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
     units: List[str] = []
@@ -44,7 +67,7 @@ def split_units(text: str) -> List[str]:
 
     return units
 
-
+# Break an oversized word list into fixed-size slices when paragraph or sentence boundaries are unavailable.
 def slice_words(words: List[str], size: int) -> List[str]:
     slices = []
     start = 0
@@ -54,11 +77,11 @@ def slice_words(words: List[str], size: int) -> List[str]:
         start = end
     return slices
 
-
+# Count the number of whitespace-delimited word tokens in a text span.
 def count_words(text: str) -> int:
     return len(WORD_RE.findall(text))
 
-
+# Assemble overlapping retrieval chunks from normalized text while roughly respecting the target chunk size.
 def chunk_document(text: str) -> List[Dict[str, object]]:
     units = split_units(normalize_text(text))
     chunks: List[Dict[str, object]] = []
@@ -93,7 +116,7 @@ def chunk_document(text: str) -> List[Dict[str, object]]:
 
     return chunks
 
-
+# Map an original plain-text path to its cleaned-text counterpart in the cleaned output directory.
 def cleaned_text_path(original_text_path: Optional[str]) -> Optional[Path]:
     if not original_text_path:
         return None
@@ -106,6 +129,7 @@ def cleaned_text_path(original_text_path: Optional[str]) -> Optional[Path]:
     return CLEANED_DIR / relative
 
 
+# Rebuild the chunks database schema, including both the chunk table and its FTS index.
 def init_db(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -144,6 +168,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX idx_chunks_date ON chunks(date)")
 
 
+# Load all documents with available text paths from the metadata database in chronological order.
 def iter_documents(metadata_conn: sqlite3.Connection) -> List[sqlite3.Row]:
     metadata_conn.row_factory = sqlite3.Row
     rows = metadata_conn.execute(
@@ -156,7 +181,7 @@ def iter_documents(metadata_conn: sqlite3.Connection) -> List[sqlite3.Row]:
     ).fetchall()
     return rows
 
-
+# Insert one document’s chunks into both the main chunks table and the FTS table, then return how many were written.
 def insert_document_chunks(
     conn: sqlite3.Connection,
     doc_id: str,
@@ -212,6 +237,7 @@ def insert_document_chunks(
     return len(chunk_rows)
 
 
+# Orchestrate cleaned-text chunking by reading documents, generating overlapping chunks, and writing them to chunks.db.
 def main() -> None:
     if not METADATA_DB.exists():
         raise FileNotFoundError(f"Missing metadata database: {METADATA_DB}")

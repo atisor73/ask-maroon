@@ -622,9 +622,9 @@ body {
 }
 
 .result-snippet {
-  line-height: 1.55;
+  line-height: 1.45;
   margin-bottom: 14px !important;
-  font-size: 0.8rem;
+  font-size: 0.85rem !important;
 }
 
 .result-snippet-wrap {
@@ -633,9 +633,9 @@ body {
 
 .result-fulltext {
   white-space: pre-wrap;
-  line-height: 1.55;
+  line-height: 1.5;
   margin-bottom: 14px;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .snippet-toggle {

@@ -1,3 +1,25 @@
+"""
+Embed chunked archive text for semantic retrieval.
+
+This script reads chunk rows from chunks.db, generates vector embeddings using
+either sentence-transformers/all-MiniLM-L6-v2, OpenAI's text-embedding-3-small, 
+or both, and writes the resulting embedding arrays, metadata files, optional FAISS 
+indices, and configuration artifacts to backend-specific output directories.
+
+Notes: 
+A FAISS (Facebook AI Similarity Search) index is a searchable container of embedding 
+vectors optimized for nearest-neighbor lookup. Instead of comparing query vector against 
+every chunk vector manually, all chunk vectors are stored in a FAISS index and asking 
+FAISS for nearest matches.
+
+`index = faiss.IndexFlatIP(embeddings.shape[1])`
+
+Later in retrieval, backend/search_vector.py loads the saved index and does: 
+`scores, indices = index.search(query_vector, requested_k)`
+This takes the embedded query, finds the top k nearest chunk vectors, and returns
+their scores and positions.
+"""
+
 import argparse
 import json
 import sqlite3
@@ -29,6 +51,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 print(OPENAI_API_KEY)
 MAX_OPENAI_RETRIES = 8
 
+# Parse command-line options that control which chunk database, backend, model, batch size, and row limit to use.
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Embed chunked archive text with one or more backends.")
     parser.add_argument("--chunks-db", default=str(CHUNKS_DB), help="Path to chunks.db")
@@ -53,6 +76,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# Load chunk rows from chunks.db in chronological order, with an optional limit for testing.
 def load_chunks(db_path: Path, limit: Optional[int]) -> List[sqlite3.Row]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -70,16 +94,18 @@ def load_chunks(db_path: Path, limit: Optional[int]) -> List[sqlite3.Row]:
     finally:
         conn.close()
 
-
+# Yield the chunk rows in fixed-size batches for more efficient embedding requests.
 def batched(rows: List[sqlite3.Row], batch_size: int):
     for start in range(0, len(rows), batch_size):
         yield rows[start : start + batch_size]
 
 
+# Ensure the embedding output directory exists before writing artifacts into it.
 def ensure_output_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+# Write chunk-level metadata alongside the embeddings so vector results can be mapped back to source chunks.
 def write_metadata(rows: List[sqlite3.Row], output_dir: Path) -> Path:
     metadata_path = output_dir / "text_metadata.jsonl"
     with metadata_path.open("w", encoding="utf-8") as handle:
@@ -101,6 +127,7 @@ def write_metadata(rows: List[sqlite3.Row], output_dir: Path) -> Path:
     return metadata_path
 
 
+# Build and save a FAISS inner-product index for the embeddings when faiss is available.
 def maybe_write_faiss(embeddings: np.ndarray, output_dir: Path) -> Optional[Path]:
     try:
         import faiss  # type: ignore
@@ -113,7 +140,7 @@ def maybe_write_faiss(embeddings: np.ndarray, output_dir: Path) -> Optional[Path
     faiss.write_index(index, str(faiss_path))
     return faiss_path
 
-
+# Save the embedding matrix, metadata, optional FAISS index, and backend configuration for downstream retrieval.
 def write_outputs(
     rows: List[sqlite3.Row],
     embeddings: np.ndarray,
@@ -145,6 +172,7 @@ def write_outputs(
     print("Config: {}".format(config_path))
 
 
+# Generate normalized embeddings for all chunks using a local sentence-transformers model and write the resulting artifacts.
 def run_sentence_transformers(
     rows: List[sqlite3.Row],
     model_name: str,
@@ -193,6 +221,7 @@ def run_sentence_transformers(
     )
 
 
+# Generate normalized embeddings for all chunks using the OpenAI embeddings API with retry handling and write the artifacts.
 def run_openai(
     rows: List[sqlite3.Row],
     model_name: str,
@@ -288,5 +317,6 @@ def main() -> None:
         run_openai(rows, model_name=args.openai_model, batch_size=args.batch_size)
 
 
+# Orchestrate the embedding pipeline by loading chunk rows and running one or both configured embedding backends.
 if __name__ == "__main__":
     main()

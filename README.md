@@ -3,7 +3,7 @@
 
 This project enables users to search the Maroon archives dating from 1902-1985. Given a query, ask-maroon seeks to retrieve the most relevant set of articles from the collection.
 
-From a technical standpoint, the archive's .txt files are chunked and semantically embedded using a model specifically tuned for semantic retrieval purposes, in our case we use sentence-transformers and open-ai. These embeddings are stored alongside the original pdfs. At query time, the user’s input is embedded with the same model, and cosine similarity is used to identify semantically relevant matches. In parallel, full-text search (FTS) is performed, and results from both methods are combined and ranked before being returned to the user. During chunking, approximate page numbers are inferred to link results back to their original document locations.
+From a technical standpoint, the archive's .txt files are chunked and semantically embedded using a model specifically tuned for semantic retrieval purposes, in our case we use sentence-transformers/all-MiniLM-L6-v2 and OpenAI's text-embedding-3-small . These embeddings are stored alongside the original pdfs. At query time, the user’s input is embedded with the same model, and cosine similarity is used to identify semantically relevant matches. In parallel, full-text search (FTS) is performed, and results from both methods are combined and ranked before being returned to the user. During chunking, approximate page numbers are inferred to link results back to their original document locations.
 
 This is all to say, this tool is not perfect, as digitizing the text files from pdfs involves some requisite amount of spelling error and noise. The poor quality of the OCR could be very sensitive to noise and spelling errors. Users are recommended to try extending their queries to include more relevant alternative keywords (i.e, bikes, bike, bicycles, cyclists, etc.).
 
@@ -13,26 +13,33 @@ Additionally, ask-maroon might struggle with queries that involve higher-level r
 We are working to integrate image embeddings and other new features.
 
 
+A little more about the models:
+- `sentence-transformers/all-MiniLM-L6-v2`: "This is a sentence-transformers model: It maps sentences & paragraphs to a 384 dimensional dense vector space and can be used for tasks like clustering or semantic search." Fine-tuned on a dataset of over 1 billion sentence pairs. Training data includes Reddit comment pairs, S2ORC citation/title/abstract pairs, WikiAnswers duplicate questions, PAQ Q/A pairs, and Stack Exchange title/body pairs. The stated fine-tuning objective is contrastive: compute cosine similarities between all sentence pairs in a batch, then apply cross-entropy against the true pair.   
+Source: ![Hugging Face model card](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)   
+Note: Both hidden dimension (internal width of transformer layers) and embedding dimension are 384.
+
+- OpenAI's `text-embedding-3-small`: "Embeddings are a numerical representation of text that can be used to measure the relatedness between two pieces of text. Embeddings are useful for search, clustering, recommendations, anomaly detection, and classification tasks." The exact training data and exact loss are not publicly documented.  
+Source: ![Docs](https://developers.openai.com/api/docs/models/text-embedding-3-small)  
+Note: Hidden dimension is unknown/proprietary, but the embedding dimension is 1,536.
+
 
 
 # To-do's
-- Make .mov demo
+- Make .mov demo: "music and jazz around the midway"
 
-- B1. Add info button explaining UI, randomize button, modeling, link to github/issues. FAQ section?
-	- highlighting
-	- It is really saying:
-		“this whole chunk is semantically near the query”
-		Then the UI layer says:
-		“within this chunk, here is a plausible phrase or sentence that best aligns with the query”
-		That means the highlight is an interpretive aid, not a faithful window into the model’s internal scoring.
+- A. Add baseline stats to README/info: get year range, total number of documents, number of documents per year (make histogram), 
+  
+- [in progress] B2. Add better documentation to each individual file as to what it is doing methodologically and how it is doing it (it will force you to do your own code review)
 
-		So could that be misleading?
-		A little, yes, if it’s presented too strongly.
-		- also note that animation while search is loading is currently on a fake timer as  otherwise we'd have to stream the backend as it's running
-	
-- B2. Add better documentation to each individual file as to what it is doing methodologically and how it is doing it (it will force you to do your own code review)
+- B1. Add info button explaining UI, link to github/issues. FAQ section?
+  - highlighting is misleading, only there as an approximate aid. 
+  - The search result is really saying:
+	“this whole chunk is semantically near the query”
+	Then the UI layer says:
+	“within this chunk, here is a plausible phrase or sentence that best aligns with the query”
+	That means the highlight is an interpretive aid, not a faithful window into the model’s internal scoring.
 
-
+    - also note that animation while search is loading is currently on a fake timer as  otherwise we'd have to stream the backend as it's running
 
 
 - E. Search for 'typical set': Toggle btw Greedy search vs. Serendipitous search.? or 
@@ -45,10 +52,18 @@ We are working to integrate image embeddings and other new features.
   - optionally ask an LLM to generate a few related entity-rich subqueries, run retrieval on all of them, merge results
 
 
-- Z. figure out production/deployment & make budget proposal 
+- Z. Figure out production/deployment & make budget proposal 
+  - Cloudflare R2 (Storage), Cloudflare Pages (Front-end), Hetzner or Digital Ocean (Back-end) 
 	- 1. storage for 300 GB PDFs/data (aws s3 or cloudflare r2)
 	- 2. backend fastAPI (ec2 or lightsail)
 	- 3. frontend hosting/CDN (aws s3+ cloudfront or cloudflare pages)
+
+
+# Data architecture moving from repo -> deployment
+what stays on local disk
+what moves to R2/S3
+what gets preloaded into memory
+what costs are per-query vs per-startup vs per-PDF-view.
 
 
 (frontend calls backend over HTTPS)
@@ -58,55 +73,66 @@ We are working to integrate image embeddings and other new features.
 		- Files: Cloudflare R2
 		- Backend: one small VM on AWS Lightsail or EC2
 
-# Finished
 
-add 'advanced search options'  dropdown
-and then year range slider lives here
-as well as Serendipitous search 
+What moves to R2/S3
+	Best candidates for object storage:
+	raw PDFs
+	cleaned/plain text artifacts if you want backup/archive durability
+	embedding artifacts as durable blobs:
+	text_faiss.index
+	text_metadata.jsonl
+	text_embeddings.npy
+	image derivatives if you add them later
+	If choosing between the two, R2 is especially attractive for PDFs because user access/download traffic is much less scary without egress fees.
 
-- A. Add year filter? add visual timeline?
-  - would be cool if we displayed an interactive timeline and then draw a circle for every search result that shows up (but we are pretty limited by number of results returned by backend)
-  - Show distribution of chunk score?
+What gets preloaded into memory
+	On backend startup:
+	FAISS index
+	chunk metadata for vector retrieval
+	sentence-transformers model, if using local embeddings at query time
+	This already roughly matches your current backend pattern in backend/search_vector.py, where resources are cached in _RESOURCE_CACHE.
+
+	The important production idea is:
+
+	download/load once per worker
+	reuse many times
+	never re-fetch FAISS from cloud storage per query
+
+------
+A practical deployment shape
+App server
+	FastAPI backend
+	serves /search, /search-metadata, document metadata endpoints
+	maybe proxies /pdf/{doc_id}, though direct object-storage delivery is often better
+
+Object storage
+	store PDFs in R2 or S3
+	optionally store large retrieval artifacts too
+Search artifacts
+	backend downloads FAISS + metadata at startup
+	keeps them in memory/local temp disk
+	all search requests use local memory afterward
+Suggested split
+	If you want a pragmatic plan:
+	R2/S3
+		PDFs
+		maybe raw/cleaned text backups
+		maybe FAISS artifact backups
+	
+	Backend local disk / attached volume
+
+		active FAISS index copy
+		SQLite DBs
+		current working artifacts
+	
+	Memory
+		loaded FAISS index
+		loaded metadata structures
+		loaded sentence-transformers model
 
 
-# data_pipeline/
-
-`run.sh` runs files sequentially. However, recommendation is to run scripts one at a time in case of failure and checking for correct outputs.
-
-`scraper_0.py`
-- output/links.json: document links 
-- output/failed_pages.json: failed pages to retrieve document links (page contains a set of documents)
-
-`scraper_1.py`
-- output/pdf-links.json: pdf links within document links
-
-`scraper_2.py`
-- output/pdfs/...: pdf of old archives
-
-`clean_text.py`
-- output/plain_text_cleaned/
-
-`build_metadata_index.py`
-- output/metadata/archive.db
-- output/metadata/docs.parquet
-
-`chunk_text.py`
-- output/metadata/chunks.db
-
-`embed_text.py`
-- output/embeddings_sentencetransformers/
-- output/embeddings_openai/
-```
-python3 embed_text.py --backend sentence-transformers
-python3 embed_text.py --backend openai
-python3 embed_text.py --backend both
-python3 embed_text.py --backend both --limit 200
-```
-
-`map_chunks_to_pages.py`
-- ouptut/metadata/chunks.db
-- ouptut/page_text_cache/*
-
+# Data_pipeline/
+Scrapes maroon archive, generates metadata index for SQLite FTS, performs sentence-level embeddings.
 
 # Backend/
 Testing query:
@@ -122,9 +148,6 @@ http://127.0.0.1:8000/search?q=student%20protests&backend=sentence-transformers
 ```
 
 
-
-
-
 # Frontend/
 Start backend: `uvicorn backend.app:app --reload`  
 
@@ -135,8 +158,15 @@ Backend docs: http://127.0.0.1:8000/docs
 
 
 
+
 # Test queries
 crimes related to bikes cycling cyclists bicycles
 articles related to haircuts, hairstyles, hair
 yarn, quilts, knitting, sewing
 yarns
+
+
+# Authorship
+Co-written with GPT-5.4
+
+# Acknowledgements

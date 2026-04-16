@@ -43,10 +43,9 @@ let loadingStatusTimer = null;
 let loadingStatusStageIndex = 0;
 let loadingStatusDotTick = 0;
 const RESULTS_PER_PAGE = 10;
-const LOADING_STATUS_INTERVAL_MS = 500;
+const LOADING_STATUS_INTERVAL_MS = 1000;
 const RANDOM_PLACEHOLDER_PROMPTS = [
   "student protests on campus",
-  "poetry in the Maroon",
   "housing shortages in Hyde Park",
   "faculty debates about free speech",
   "student reactions to the Vietnam War",
@@ -76,19 +75,24 @@ const RANDOM_PLACEHOLDER_PROMPTS = [
   "articles about censorship or banned books",
   "debates over campus dress codes",
   "international students in the archives",
+  "kuvia",
+  "yarn"
 ];
 const SEARCH_LOADING_STAGES = [
   "Embedding query",
   "Searching archive",
   "Ranking results",
 ];
-const SEARCH_LOADING_STAGE_DOT_COUNTS = [6, 2, Infinity];
+const SEARCH_LOADING_STAGE_DOT_COUNTS = [10, 10, Infinity];
 
+// Return the currently selected search mode from the advanced-search radio buttons.
 function selectedSearchMode() {
   const checked = document.querySelector('input[name="search-mode"]:checked');
   return checked?.value || "greedy";
 }
 
+// Enable or disable the sampling controls based on the selected search mode 
+// Ensure Top N has a default value.
 function updateSamplingControls() {
   const isSampling = selectedSearchMode() === "sample";
   samplingControls.classList.toggle("is-disabled", !isSampling);
@@ -99,6 +103,7 @@ function updateSamplingControls() {
   }
 }
 
+// Pick a random curated example query and show it as the search input placeholder.
 function chooseRandomPlaceholderPrompt() {
   if (!RANDOM_PLACEHOLDER_PROMPTS.length) {
     return;
@@ -108,17 +113,21 @@ function chooseRandomPlaceholderPrompt() {
   queryInput.placeholder = `Try: ${RANDOM_PLACEHOLDER_PROMPTS[promptIndex]}`;
 }
 
+
+// Update the status text shown above the results list and clear any active loading animation.
 function setStatus(message) {
   stopLoadingStatus();
   statusText.textContent = message;
   statusText.classList.remove("is-loading");
 }
 
+// Render the current loading-stage message with animated dots in the status area.
 function renderLoadingStatusFrame() {
   const dots = ".".repeat((loadingStatusDotTick % 3) + 1);
   statusText.textContent = `${SEARCH_LOADING_STAGES[loadingStatusStageIndex]}${dots}`;
 }
 
+// Start the staged loading-status animation shown while a search request is in flight.
 function startLoadingStatus() {
   stopLoadingStatus();
   loadingStatusStageIndex = 0;
@@ -138,6 +147,7 @@ function startLoadingStatus() {
   }, LOADING_STATUS_INTERVAL_MS);
 }
 
+// Stop the loading-status timer so the status area can return to normal messages.
 function stopLoadingStatus() {
   if (loadingStatusTimer !== null) {
     window.clearInterval(loadingStatusTimer);
@@ -145,12 +155,14 @@ function stopLoadingStatus() {
   }
 }
 
+// Escape user-visible text so it can be inserted into HTML safely.
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
 
+// Clear the current results view and show an empty-state message in the status area.
 function renderEmptyState(message) {
   resultsList.innerHTML = "";
   currentResults = [];
@@ -161,11 +173,13 @@ function renderEmptyState(message) {
   setStatus(message);
 }
 
+// Show a status message describing which slice of results is currently visible and which backend produced them.
 function updateResultsStatus() {
   if (!currentResults.length || !currentVectorBackend) {
     return;
   }
 
+  
   const start = (currentPage - 1) * RESULTS_PER_PAGE + 1;
   const end = Math.min(currentResults.length, currentPage * RESULTS_PER_PAGE);
   const fallbackPrefix = currentUsedFallback ? "OpenAI unavailable, fell back. " : "";
@@ -174,11 +188,13 @@ function updateResultsStatus() {
   );
 }
 
+// Toggle the page layout between normal mode and expanded PDF-viewer mode.
 function updateViewerMode() {
   document.body.classList.toggle("pdf-focus-mode", viewerExpanded);
   toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF-Viewer" : "Expand PDF-Viewer";
 }
 
+// Build the decade tick marks and labels used by the year-range slider.
 function buildDecadeTicks(minYear, maxYear) {
   yearDecadeTicks.innerHTML = "";
   yearTickMarks.innerHTML = "";
@@ -215,6 +231,7 @@ function buildDecadeTicks(minYear, maxYear) {
     });
 }
 
+// Update the highlighted portion of the dual year slider to match the current start and end years.
 function updateYearTrack() {
   if (!availableYearRange) {
     return;
@@ -230,6 +247,7 @@ function updateYearTrack() {
   yearDualSlider.style.setProperty("--range-end", `${endPercent}%`);
 }
 
+// Sync the visible year readouts with the current year slider values.
 function updateYearSummary() {
   const startYear = Number(startYearInput.value);
   const endYear = Number(endYearInput.value);
@@ -238,6 +256,7 @@ function updateYearSummary() {
   updateYearTrack();
 }
 
+// Keep the typed year input boxes synchronized with the slider values unless the user is actively editing them.
 function syncDraftYearValueInputs() {
   if (document.activeElement !== startYearValue) {
     startYearValue.value = String(startYearInput.value);
@@ -247,6 +266,7 @@ function syncDraftYearValueInputs() {
   }
 }
 
+// Prevent the year-range sliders from crossing over and keep the selected range valid.
 function clampYearInputs(changedInput) {
   let startYear = Number(startYearInput.value);
   let endYear = Number(endYearInput.value);
@@ -265,6 +285,7 @@ function clampYearInputs(changedInput) {
   updateYearTrack();
 }
 
+// Validate, clamp, and commit typed year values back into the year-range sliders.
 function commitYearValueInputs(changedInput) {
   if (!availableYearRange) {
     return;
@@ -291,6 +312,7 @@ function commitYearValueInputs(changedInput) {
   clampYearInputs(changedInput);
 }
 
+// Preview a typed year value as soon as it looks like a complete four-digit year.
 function maybePreviewYearValueInput(changedInput) {
   const draftValue = changedInput.value.trim();
 
@@ -301,10 +323,12 @@ function maybePreviewYearValueInput(changedInput) {
   commitYearValueInputs(changedInput === startYearValue ? startYearInput : endYearInput);
 }
 
+// Commit the current typed year field into the underlying year-range selection.
 function commitYearValueFromField(changedInput) {
   commitYearValueInputs(changedInput === startYearValue ? startYearInput : endYearInput);
 }
 
+// Fetch the available year range from the backend and initialize the year filter UI.
 async function initializeYearFilter() {
   try {
     const response = await fetch(`${API_BASE_URL}/search-metadata`);
@@ -335,6 +359,7 @@ async function initializeYearFilter() {
   }
 }
 
+// Expand the PDF viewer if it is currently collapsed.
 function ensureViewerExpanded() {
   if (!viewerExpanded) {
     viewerExpanded = true;
@@ -342,6 +367,7 @@ function ensureViewerExpanded() {
   }
 }
 
+// Choose the page number that best represents a document result for opening in the PDF viewer.
 function preferredPage(documentResult) {
   if (!documentResult?.chunks?.length) {
     return null;
@@ -354,6 +380,7 @@ function preferredPage(documentResult) {
   return bestChunk?.page_number || null;
 }
 
+// Build one interactive result card, including snippet toggling and PDF-opening behavior.
 function buildResultCard(documentResult) {
   const article = document.createElement("article");
   article.className = "result-card";
@@ -395,6 +422,7 @@ function buildResultCard(documentResult) {
   const openPdfButton = article.querySelector(".result-meta button");
   const pageNumber = preferredPage(documentResult);
 
+  
   function toggleExpandedText() {
     const isExpanded = snippetToggle.getAttribute("aria-expanded") === "true";
     snippetToggle.setAttribute("aria-expanded", String(!isExpanded));
@@ -426,6 +454,7 @@ function buildResultCard(documentResult) {
   return article;
 }
 
+// Update the pagination controls and labels based on the current result page.
 function renderPagination() {
   const totalResults = currentResults.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / RESULTS_PER_PAGE));
@@ -446,6 +475,7 @@ function renderPagination() {
   updateResultsStatus();
 }
 
+// Render the current page of result cards and auto-open the first visible document.
 function renderResultsPage() {
   resultsList.innerHTML = "";
   selectedDocId = null;
@@ -475,6 +505,7 @@ function renderResultsPage() {
   updateResultsStatus();
 }
 
+// Load the selected document PDF into the viewer and update the viewer title, subtitle, and link.
 function openPdf(documentResult) {
   const pageNumber = preferredPage(documentResult);
 
@@ -496,6 +527,7 @@ function openPdf(documentResult) {
   pdfFrame.src = pdfUrl;
 }
 
+// Mark one result card as selected and clear the selection styling from the previous card.
 function setSelectedCard(cardElement) {
   if (selectedCard) {
     selectedCard.classList.remove("is-selected");
@@ -508,6 +540,7 @@ function setSelectedCard(cardElement) {
   }
 }
 
+// Fetch a random issue from the backend and open it in the PDF viewer for exploratory browsing.
 async function openRandomIssue() {
   setStatus("Exploring a random issue...");
 
@@ -531,6 +564,7 @@ async function openRandomIssue() {
   }
 }
 
+// Submit the current search form to the backend, handle loading state, and render the returned results.
 async function runSearch(event) {
   event.preventDefault();
 

@@ -1,0 +1,12 @@
+requests
+beautifulsoup4
+tqdm
+numpy
+python-dotenv
+openai
+sentence-transformers
+faiss-cpu
+wordsegment
+pypdf
+pandas
+pyarrow

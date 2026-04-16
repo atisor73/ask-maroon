@@ -1,8 +1,2 @@
-requests
-beautifulsoup4
-tqdm
-openai
-numpy
-python-dotenv
-wordsegment
-pypdf
+-r backend/requirements.txt
+-r data_pipeline/requirements.txt

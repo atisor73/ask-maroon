@@ -1,3 +1,12 @@
+"""
+Build a document-level metadata index for the Maroon archive outputs.
+
+This script scans the local PDF corpus, matches each PDF to its plain-text
+counterpart and any scraped metadata from documents.json, and writes a
+normalized document table to SQLite. It also optionally exports the same rows
+to parquet for easier downstream analysis.
+"""
+
 import json
 import sqlite3
 from pathlib import Path
@@ -14,6 +23,7 @@ DB_PATH = METADATA_DIR / "archive.db"
 PARQUET_PATH = METADATA_DIR / "docs.parquet"
 
 
+# Load the scraped documents JSON file and index its records by document ID.
 def load_documents_json(path: Path) -> Dict[str, dict]:
     if not path.exists():
         return {}
@@ -26,7 +36,7 @@ def load_documents_json(path: Path) -> Dict[str, dict]:
             by_id[doc_id] = record
     return by_id
 
-
+# Recursively find all PDF files under the given root while skipping notebook checkpoint artifacts.
 def iter_pdf_files(root: Path) -> Iterable[Path]:
     if not root.exists():
         return []
@@ -36,16 +46,16 @@ def iter_pdf_files(root: Path) -> Iterable[Path]:
         if ".ipynb_checkpoints" not in path.parts and not path.name.endswith("-checkpoint.pdf")
     )
 
-
+# Derive a document ID from a PDF filename by using its stem.
 def extract_doc_id(pdf_path: Path) -> str:
     return pdf_path.stem
 
-
+# Infer the matching plain-text file path for a given PDF path using the output directory layout.
 def infer_text_path(pdf_path: Path) -> Path:
     relative = pdf_path.relative_to(PDF_DIR)
     return TEXT_DIR / relative.with_suffix(".txt")
 
-
+# Try to reconstruct an ISO-style date string from the document ID naming convention.
 def infer_date_from_doc_id(doc_id: str) -> Optional[str]:
     parts = doc_id.split("-")
     if len(parts) < 4:
@@ -58,6 +68,7 @@ def infer_date_from_doc_id(doc_id: str) -> Optional[str]:
     return None
 
 
+# Count the number of pages in a PDF, falling back between supported reader libraries if needed.
 def count_pdf_pages(pdf_path: Path) -> Optional[int]:
     try:
         from pypdf import PdfReader  # type: ignore
@@ -73,7 +84,7 @@ def count_pdf_pages(pdf_path: Path) -> Optional[int]:
     except Exception:
         return None
 
-
+# Classify whether OCR/plain text exists for a document based on the text file path and its length.
 def detect_ocr_status(text_path: Path, text_length: int) -> str:
     if not text_path.exists():
         return "missing_text"
@@ -81,7 +92,7 @@ def detect_ocr_status(text_path: Path, text_length: int) -> str:
         return "empty_text"
     return "text_present"
 
-
+# Build one normalized metadata row for a document by combining file-derived info with scraped metadata.
 def build_document_row(pdf_path: Path, docs_by_id: Dict[str, dict]) -> dict:
     doc_id = extract_doc_id(pdf_path)
     source = docs_by_id.get(doc_id, {})
@@ -109,6 +120,7 @@ def build_document_row(pdf_path: Path, docs_by_id: Dict[str, dict]) -> dict:
     }
 
 
+# Create the documents table if needed and clear any previously indexed rows before rebuilding the index.
 def init_db(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -130,7 +142,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     )
     conn.execute("DELETE FROM documents")
 
-
+# Insert the prepared document metadata rows into the SQLite documents table and commit the transaction.
 def insert_rows(conn: sqlite3.Connection, rows: Iterable[dict]) -> None:
     conn.executemany(
         """
@@ -147,6 +159,7 @@ def insert_rows(conn: sqlite3.Connection, rows: Iterable[dict]) -> None:
     conn.commit()
 
 
+# Export the indexed document rows to parquet when pandas and parquet support are available.
 def export_parquet(rows: list[dict], path: Path) -> None:
     try:
         import pandas as pd  # type: ignore
@@ -161,6 +174,7 @@ def export_parquet(rows: list[dict], path: Path) -> None:
         print(f"Skipping parquet export: {exc}")
 
 
+# Orchestrate metadata indexing by reading source files, rebuilding the SQLite table, and writing parquet output.
 def main() -> None:
     METADATA_DIR.mkdir(parents=True, exist_ok=True)
 
