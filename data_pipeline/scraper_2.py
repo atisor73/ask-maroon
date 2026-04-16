@@ -61,6 +61,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Overwrite local files or R2 objects even if they already exist.",
     )
+    parser.add_argument(
+        "--print-r2-logs",
+        action="store_true",
+        help="Print R2 upload/skip logs using tqdm.write.",
+    )
     return parser.parse_args()
 
 
@@ -201,6 +206,11 @@ def upload_file_to_r2(client, bucket: str, local_path: Path, object_key: str) ->
     client.upload_file(str(local_path), bucket, object_key)
 
 
+def log_r2_event(enabled: bool, message: str) -> None:
+    if enabled:
+        tqdm.write(message)
+
+
 def download_and_upload_pdf(
     client,
     bucket: str,
@@ -208,8 +218,10 @@ def download_and_upload_pdf(
     object_key: str,
     temp_dir: Path,
     overwrite: bool = False,
+    print_r2_logs: bool = False,
 ) -> bool:
     if not overwrite and object_exists_r2(client, bucket, object_key):
+        log_r2_event(print_r2_logs, f"[R2 SKIP PDF] s3://{bucket}/{object_key}")
         return True
 
     ensure_parent(temp_dir / "placeholder")
@@ -218,6 +230,7 @@ def download_and_upload_pdf(
         if not download_pdf_to_path(url, temp_path, overwrite=True):
             return False
         upload_file_to_r2(client, bucket, temp_path, object_key)
+        log_r2_event(print_r2_logs, f"[R2 UPLOAD PDF] s3://{bucket}/{object_key}")
         return True
     finally:
         if temp_path.exists():
@@ -231,8 +244,10 @@ def download_and_upload_text(
     object_key: str,
     temp_dir: Path,
     overwrite: bool = False,
+    print_r2_logs: bool = False,
 ) -> bool:
     if not overwrite and object_exists_r2(client, bucket, object_key):
+        log_r2_event(print_r2_logs, f"[R2 SKIP TEXT] s3://{bucket}/{object_key}")
         return True
 
     ensure_parent(temp_dir / "placeholder")
@@ -241,6 +256,7 @@ def download_and_upload_text(
         if not download_text_to_path(url, temp_path, overwrite=True):
             return False
         upload_file_to_r2(client, bucket, temp_path, object_key)
+        log_r2_event(print_r2_logs, f"[R2 UPLOAD TEXT] s3://{bucket}/{object_key}")
         return True
     finally:
         if temp_path.exists():
@@ -264,11 +280,13 @@ class Downloader:
         force: bool,
         r2_prefix: str,
         temp_dir: Path,
+        print_r2_logs: bool,
     ) -> None:
         self.mode = mode
         self.force = force
         self.r2_prefix = r2_prefix
         self.temp_dir = temp_dir
+        self.print_r2_logs = print_r2_logs
         self.client = None
         self.bucket = None
 
@@ -298,6 +316,7 @@ class Downloader:
             pdf_key,
             self.temp_dir,
             overwrite=self.force,
+            print_r2_logs=self.print_r2_logs,
         ):
             results.append({"type": "pdf", "url": doc["pdf_url"], "doc_id": doc["id"], "r2_key": pdf_key})
         if not download_and_upload_text(
@@ -307,6 +326,7 @@ class Downloader:
             text_key,
             self.temp_dir,
             overwrite=self.force,
+            print_r2_logs=self.print_r2_logs,
         ):
             results.append({"type": "text", "url": doc["plain_text_url"], "doc_id": doc["id"], "r2_key": text_key})
         return results
@@ -327,6 +347,7 @@ def main() -> None:
         force=args.force,
         r2_prefix=args.r2_prefix,
         temp_dir=Path(args.temp_dir),
+        print_r2_logs=args.print_r2_logs,
     )
 
     failed = []
