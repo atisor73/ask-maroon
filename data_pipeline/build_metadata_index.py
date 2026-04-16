@@ -1,9 +1,9 @@
 """
 Build a document-level metadata index for the Maroon archive outputs.
 
-This script scans the local PDF corpus, matches each PDF to its plain-text
-counterpart and any scraped metadata from documents.json, and writes a
-normalized document table to SQLite. It also optionally exports the same rows
+This script scans the local plain-text corpus, matches each text file to the
+expected PDF location and any scraped metadata from documents.json, and writes
+a normalized document table to SQLite. It also optionally exports the same rows
 to parquet for easier downstream analysis.
 """
 
@@ -36,24 +36,24 @@ def load_documents_json(path: Path) -> Dict[str, dict]:
             by_id[doc_id] = record
     return by_id
 
-# Recursively find all PDF files under the given root while skipping notebook checkpoint artifacts.
-def iter_pdf_files(root: Path) -> Iterable[Path]:
+# Recursively find all plain-text files under the given root while skipping notebook checkpoint artifacts.
+def iter_text_files(root: Path) -> Iterable[Path]:
     if not root.exists():
         return []
     return sorted(
         path
-        for path in root.rglob("*.pdf")
-        if ".ipynb_checkpoints" not in path.parts and not path.name.endswith("-checkpoint.pdf")
+        for path in root.rglob("*.txt")
+        if ".ipynb_checkpoints" not in path.parts and not path.name.endswith("-checkpoint.txt")
     )
 
-# Derive a document ID from a PDF filename by using its stem.
-def extract_doc_id(pdf_path: Path) -> str:
-    return pdf_path.stem
+# Derive a document ID from a text filename by using its stem.
+def extract_doc_id(text_path: Path) -> str:
+    return text_path.stem
 
-# Infer the matching plain-text file path for a given PDF path using the output directory layout.
-def infer_text_path(pdf_path: Path) -> Path:
-    relative = pdf_path.relative_to(PDF_DIR)
-    return TEXT_DIR / relative.with_suffix(".txt")
+# Infer the matching PDF file path for a given text path using the output directory layout.
+def infer_pdf_path(text_path: Path) -> Path:
+    relative = text_path.relative_to(TEXT_DIR)
+    return PDF_DIR / relative.with_suffix(".pdf")
 
 # Try to reconstruct an ISO-style date string from the document ID naming convention.
 def infer_date_from_doc_id(doc_id: str) -> Optional[str]:
@@ -84,25 +84,21 @@ def count_pdf_pages(pdf_path: Path) -> Optional[int]:
     except Exception:
         return None
 
-# Classify whether OCR/plain text exists for a document based on the text file path and its length.
-def detect_ocr_status(text_path: Path, text_length: int) -> str:
-    if not text_path.exists():
-        return "missing_text"
+# Classify whether OCR/plain text exists for a document based on the text length.
+def detect_ocr_status(text_length: int) -> str:
     if text_length == 0:
         return "empty_text"
     return "text_present"
 
 # Build one normalized metadata row for a document by combining file-derived info with scraped metadata.
-def build_document_row(pdf_path: Path, docs_by_id: Dict[str, dict]) -> dict:
-    doc_id = extract_doc_id(pdf_path)
+def build_document_row(text_path: Path, docs_by_id: Dict[str, dict]) -> dict:
+    doc_id = extract_doc_id(text_path)
     source = docs_by_id.get(doc_id, {})
-    text_path = infer_text_path(pdf_path)
+    pdf_path = infer_pdf_path(text_path)
 
     date = source.get("date") or infer_date_from_doc_id(doc_id)
     year = source.get("year") or (date[:4] if date else None)
-    text_length = 0
-    if text_path.exists():
-        text_length = len(text_path.read_text(encoding="utf-8", errors="ignore"))
+    text_length = len(text_path.read_text(encoding="utf-8", errors="ignore"))
 
     return {
         "doc_id": doc_id,
@@ -110,12 +106,12 @@ def build_document_row(pdf_path: Path, docs_by_id: Dict[str, dict]) -> dict:
         "date": date,
         "title": source.get("title"),
         "pdf_path": str(pdf_path),
-        "text_path": str(text_path) if text_path.exists() else None,
+        "text_path": str(text_path),
         "source_url": source.get("doc_url"),
         "pdf_url": source.get("pdf_url"),
         "plain_text_url": source.get("plain_text_url"),
-        "page_count": count_pdf_pages(pdf_path),
-        "ocr_status": detect_ocr_status(text_path, text_length),
+        "page_count": count_pdf_pages(pdf_path) if pdf_path.exists() else None,
+        "ocr_status": detect_ocr_status(text_length),
         "text_length": text_length,
     }
 
@@ -179,8 +175,8 @@ def main() -> None:
     METADATA_DIR.mkdir(parents=True, exist_ok=True)
 
     docs_by_id = load_documents_json(DOCUMENTS_JSON)
-    pdf_files = list(iter_pdf_files(PDF_DIR))
-    rows = [build_document_row(pdf_path, docs_by_id) for pdf_path in pdf_files]
+    text_files = list(iter_text_files(TEXT_DIR))
+    rows = [build_document_row(text_path, docs_by_id) for text_path in text_files]
 
     conn = sqlite3.connect(DB_PATH)
     try:

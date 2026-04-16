@@ -1,10 +1,13 @@
 import re
 import sqlite3
 import json
+import os
+import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from dotenv import load_dotenv
 from tqdm import tqdm
 
 
@@ -17,6 +20,8 @@ PAGE_TEXT_CACHE_DIR = OUTPUT_DIR / "metadata" / "page_text_cache"
 MIN_TOKEN_LENGTH = 3
 PAGE_LOOKAHEAD = 4
 COMMIT_EVERY_DOCS = 25
+DEFAULT_R2_PREFIX = "archive"
+DEFAULT_TEMP_DIR = Path(tempfile.gettempdir()) / "maroon-r2-page-cache"
 
 
 def normalize_text(text: str) -> str:
@@ -91,6 +96,61 @@ def load_or_extract_page_texts(doc_id: str, pdf_path: Path) -> List[str]:
     page_texts = extract_page_texts(pdf_path)
     cache_path.write_text(json.dumps(page_texts), encoding="utf-8")
     return page_texts
+
+
+def build_r2_client():
+    try:
+        import boto3
+    except Exception as exc:
+        raise RuntimeError("boto3 is required to fetch PDFs from R2.") from exc
+
+    account_id = os.getenv("R2_ACCOUNT_ID")
+    access_key = os.getenv("R2_ACCESS_KEY_ID")
+    secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+    bucket = os.getenv("R2_BUCKET")
+
+    missing = [
+        name
+        for name, value in (
+            ("R2_ACCOUNT_ID", account_id),
+            ("R2_ACCESS_KEY_ID", access_key),
+            ("R2_SECRET_ACCESS_KEY", secret_key),
+            ("R2_BUCKET", bucket),
+        )
+        if not value
+    ]
+    if missing:
+        raise RuntimeError("Missing required R2 environment variables: {}".format(", ".join(missing)))
+
+    endpoint_url = os.getenv("R2_ENDPOINT_URL") or f"https://{account_id}.r2.cloudflarestorage.com"
+    client = boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="auto",
+    )
+    return client, bucket
+
+
+def r2_pdf_key_for_doc(doc_id: str, prefix: str = DEFAULT_R2_PREFIX) -> str:
+    parts = doc_id.split("-")
+    if len(parts) < 4:
+        raise ValueError("Could not infer year/month from doc_id: {}".format(doc_id))
+
+    year = parts[-2]
+    month = parts[-1][:2]
+    normalized_prefix = prefix.strip("/")
+    key_prefix = f"{normalized_prefix}/" if normalized_prefix else ""
+    return f"{key_prefix}pdfs/{year}/{month}/{doc_id}.pdf"
+
+
+def download_pdf_from_r2(client, bucket: str, doc_id: str, prefix: str = DEFAULT_R2_PREFIX) -> Path:
+    object_key = r2_pdf_key_for_doc(doc_id, prefix=prefix)
+    temp_path = DEFAULT_TEMP_DIR / object_key
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    client.download_file(bucket, object_key, str(temp_path))
+    return temp_path
 
 
 def ensure_chunk_page_columns(conn: sqlite3.Connection) -> None:
@@ -245,8 +305,11 @@ def main() -> None:
     if not CHUNKS_DB.exists():
         raise FileNotFoundError("Missing chunks database: {}".format(CHUNKS_DB))
 
+    load_dotenv(ROOT / ".env")
     archive_conn = sqlite3.connect(ARCHIVE_DB)
     chunks_conn = sqlite3.connect(CHUNKS_DB)
+    r2_client = None
+    r2_bucket = None
 
     processed_docs = 0
     processed_chunks = 0
@@ -259,18 +322,28 @@ def main() -> None:
         documents = fetch_documents_with_chunks(archive_conn, chunks_conn)
 
         for doc_row in tqdm(documents, total=len(documents), desc="Mapping chunks to pages", unit="doc"):
-            pdf_path = Path(doc_row["pdf_path"])
-            if not pdf_path.exists():
-                append_failure(doc_row["doc_id"], pdf_path, "pdf_missing")
-                failed_docs += 1
+            if document_is_already_mapped(chunks_conn, doc_row["doc_id"]):
+                skipped_docs += 1
                 continue
+
+            pdf_path = Path(doc_row["pdf_path"])
+            temp_pdf_path = None
+
+            if not pdf_path.exists():
+                try:
+                    if r2_client is None or r2_bucket is None:
+                        r2_client, r2_bucket = build_r2_client()
+                    temp_pdf_path = download_pdf_from_r2(r2_client, r2_bucket, doc_row["doc_id"])
+                    pdf_path = temp_pdf_path
+                except Exception:
+                    append_failure(doc_row["doc_id"], pdf_path, "pdf_missing")
+                    failed_docs += 1
+                    continue
             if pdf_path.stat().st_size == 0:
                 append_failure(doc_row["doc_id"], pdf_path, "pdf_empty")
                 failed_docs += 1
-                continue
-
-            if document_is_already_mapped(chunks_conn, doc_row["doc_id"]):
-                skipped_docs += 1
+                if temp_pdf_path and temp_pdf_path.exists():
+                    temp_pdf_path.unlink()
                 continue
 
             try:
@@ -278,10 +351,14 @@ def main() -> None:
             except Exception as exc:
                 append_failure(doc_row["doc_id"], pdf_path, exc.__class__.__name__)
                 failed_docs += 1
+                if temp_pdf_path and temp_pdf_path.exists():
+                    temp_pdf_path.unlink()
                 continue
             if not page_texts:
                 append_failure(doc_row["doc_id"], pdf_path, "no_page_text")
                 failed_docs += 1
+                if temp_pdf_path and temp_pdf_path.exists():
+                    temp_pdf_path.unlink()
                 continue
 
             page_counters = [build_token_counter(text) for text in page_texts]
@@ -289,6 +366,8 @@ def main() -> None:
             chunk_rows = fetch_chunks_for_document(chunks_conn, doc_row["doc_id"], only_unmapped=True)
             if not chunk_rows:
                 skipped_docs += 1
+                if temp_pdf_path and temp_pdf_path.exists():
+                    temp_pdf_path.unlink()
                 continue
 
             last_page_number = 1
@@ -314,6 +393,9 @@ def main() -> None:
             if docs_since_commit >= COMMIT_EVERY_DOCS:
                 chunks_conn.commit()
                 docs_since_commit = 0
+
+            if temp_pdf_path and temp_pdf_path.exists():
+                temp_pdf_path.unlink()
 
         chunks_conn.commit()
     finally:

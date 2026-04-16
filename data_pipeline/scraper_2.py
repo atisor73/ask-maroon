@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import random
+import shutil
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -261,23 +262,35 @@ def download_and_upload_text(
     url: str,
     object_key: str,
     temp_dir: Path,
+    local_path: Path,
     overwrite: bool = False,
     print_r2_logs: bool = False,
 ) -> bool:
-    if not overwrite and object_exists_r2(client, bucket, object_key):
+    ensure_parent(temp_dir / "placeholder")
+    ensure_parent(local_path)
+    temp_path = temp_dir / object_key
+    needs_upload = overwrite or not object_exists_r2(client, bucket, object_key)
+    needs_local = overwrite or not local_path.exists()
+
+    if not needs_upload and not needs_local:
         log_r2_event(print_r2_logs, f"[R2 SKIP TEXT] s3://{bucket}/{object_key}")
         return True
 
-    ensure_parent(temp_dir / "placeholder")
-    temp_path = temp_dir / object_key
     try:
         if not download_text_to_path(url, temp_path, overwrite=True):
             return False
-        upload_file_to_r2(client, bucket, temp_path, object_key)
-        if not verify_object_exists_r2(client, bucket, object_key):
-            log_r2_event(print_r2_logs, f"[R2 VERIFY FAILED TEXT] s3://{bucket}/{object_key}")
-            return False
-        log_r2_event(print_r2_logs, f"[R2 UPLOAD TEXT] s3://{bucket}/{object_key}")
+
+        if needs_upload:
+            upload_file_to_r2(client, bucket, temp_path, object_key)
+            if not verify_object_exists_r2(client, bucket, object_key):
+                log_r2_event(print_r2_logs, f"[R2 VERIFY FAILED TEXT] s3://{bucket}/{object_key}")
+                return False
+            log_r2_event(print_r2_logs, f"[R2 UPLOAD TEXT] s3://{bucket}/{object_key}")
+        else:
+            log_r2_event(print_r2_logs, f"[R2 SKIP TEXT] s3://{bucket}/{object_key}")
+
+        if needs_local:
+            shutil.copyfile(temp_path, local_path)
         return True
     finally:
         if temp_path.exists():
@@ -330,6 +343,7 @@ class Downloader:
             return results
 
         pdf_key, text_key = get_r2_keys(doc, self.r2_prefix)
+        _, local_text_path = get_local_paths(doc)
         if not download_and_upload_pdf(
             self.client,
             self.bucket,
@@ -346,6 +360,7 @@ class Downloader:
             doc["plain_text_url"],
             text_key,
             self.temp_dir,
+            local_text_path,
             overwrite=self.force,
             print_r2_logs=self.print_r2_logs,
         ):
