@@ -13,6 +13,16 @@
           <p class="eyebrow">Chicago Maroon Archive</p>
           <div class="masthead-title-row">
             <h1>Search The Archive</h1>
+            <button
+              id="info-button"
+              class="info-button"
+              type="button"
+              aria-expanded="false"
+              aria-controls="annotation-layer"
+              aria-label="Open interface guide"
+            >
+              i
+            </button>
           </div>
         </div>
         <img class="masthead-mark" src="../imgs/phoenix_trace.png" alt="Phoenix mascot" />
@@ -194,6 +204,16 @@
           ></iframe>
         </aside>
       </main>
+
+      <section id="annotation-layer" class="annotation-layer" hidden aria-label="Interface guide">
+        <div class="annotation-header">
+          <p class="eyebrow">Guide Layer</p>
+          <p class="annotation-header-copy">
+            A fixed visual walkthrough of the interface. Toggle the `i` button to hide it.
+          </p>
+        </div>
+        <div id="annotation-items" class="annotation-items"></div>
+      </section>
 
       <button
         id="collapse-viewer-edge"

@@ -1,3 +1,5 @@
+import { UI_ANNOTATIONS } from "./faqContent.js";
+
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 const searchForm = document.querySelector("#search-form");
@@ -29,6 +31,9 @@ const pdfFrame = document.querySelector("#pdf-frame");
 const toggleViewerButton = document.querySelector("#toggle-viewer-button");
 const randomIssueButton = document.querySelector("#random-issue-button");
 const collapseViewerEdge = document.querySelector("#collapse-viewer-edge");
+const infoButton = document.querySelector("#info-button");
+const annotationLayer = document.querySelector("#annotation-layer");
+const annotationItems = document.querySelector("#annotation-items");
 
 let selectedCard = null;
 let selectedDocId = null;
@@ -84,6 +89,97 @@ const SEARCH_LOADING_STAGES = [
   "Ranking results",
 ];
 const SEARCH_LOADING_STAGE_DOT_COUNTS = [10, 10, Infinity];
+
+function buildAnnotationMarkup(annotation) {
+  return `
+    <article
+      class="annotation-card"
+      data-annotation-card="${annotation.id}"
+    >
+      <h2>${escapeHtml(annotation.title)}</h2>
+      <p>${escapeHtml(annotation.text)}</p>
+      ${
+        annotation.linkHref
+          ? `<a class="annotation-link" href="${escapeHtml(annotation.linkHref)}" target="_blank" rel="noreferrer">${escapeHtml(annotation.linkLabel)}</a>`
+          : ""
+      }
+    </article>
+    <span
+      class="annotation-dot"
+      data-annotation-dot="${annotation.id}"
+      aria-hidden="true"
+    ></span>
+    <span
+      class="annotation-line"
+      data-annotation-line="${annotation.id}"
+      aria-hidden="true"
+    ></span>
+  `;
+}
+
+function renderAnnotationLayer() {
+  annotationItems.innerHTML = UI_ANNOTATIONS.map(buildAnnotationMarkup).join("");
+  positionAnnotations();
+}
+
+function positionAnnotations() {
+  if (annotationLayer.hidden || window.innerWidth <= 980) {
+    return;
+  }
+
+  const containerRect = annotationItems.getBoundingClientRect();
+  const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+
+  UI_ANNOTATIONS.forEach((annotation) => {
+    const card = annotationItems.querySelector(`[data-annotation-card="${annotation.id}"]`);
+    const dot = annotationItems.querySelector(`[data-annotation-dot="${annotation.id}"]`);
+    const line = annotationItems.querySelector(`[data-annotation-line="${annotation.id}"]`);
+
+    if (!card || !dot || !line) {
+      return;
+    }
+
+    const cardLeft = (containerRect.width * annotation.leftPct) / 100;
+    const cardTop = annotation.topRem * rootFontSize;
+    const cardWidth = annotation.widthRem * rootFontSize;
+    const dotLeft = (containerRect.width * annotation.dotLeftPct) / 100;
+    const dotTop = annotation.dotTopRem * rootFontSize;
+
+    card.style.left = `${cardLeft}px`;
+    card.style.top = `${cardTop}px`;
+    card.style.width = `${cardWidth}px`;
+    dot.style.left = `${dotLeft}px`;
+    dot.style.top = `${dotTop}px`;
+
+    const cardRect = card.getBoundingClientRect();
+    const startX = cardRect.left + cardRect.width / 2 - containerRect.left;
+    const startY = cardRect.top + cardRect.height / 2 - containerRect.top;
+    const endX = dotLeft;
+    const endY = dotTop;
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    const length = Math.hypot(deltaX, deltaY);
+    const angle = Math.atan2(deltaY, deltaX);
+
+    line.style.left = `${startX}px`;
+    line.style.top = `${startY}px`;
+    line.style.width = `${length}px`;
+    line.style.transform = `rotate(${angle}rad)`;
+  });
+}
+
+function setAnnotationLayerOpen(isOpen) {
+  annotationLayer.hidden = !isOpen;
+  infoButton.setAttribute("aria-expanded", String(isOpen));
+  infoButton.classList.toggle("is-active", isOpen);
+  if (isOpen) {
+    positionAnnotations();
+  }
+}
+
+function toggleAnnotationLayer() {
+  setAnnotationLayerOpen(annotationLayer.hidden);
+}
 
 // Return the currently selected search mode from the advanced-search radio buttons.
 function selectedSearchMode() {
@@ -624,6 +720,7 @@ async function runSearch(event) {
 
 searchForm.addEventListener("submit", runSearch);
 randomIssueButton.addEventListener("click", openRandomIssue);
+infoButton.addEventListener("click", toggleAnnotationLayer);
 searchModeInputs.forEach((input) => {
   input.addEventListener("change", updateSamplingControls);
 });
@@ -673,6 +770,11 @@ nextPageButton.addEventListener("click", () => {
   renderResultsPage();
 });
 
+window.addEventListener("resize", () => {
+  positionAnnotations();
+});
+
 initializeYearFilter();
 updateSamplingControls();
 chooseRandomPlaceholderPrompt();
+renderAnnotationLayer();
