@@ -161,7 +161,7 @@ body {
 .annotation-step-label {
   margin: 0 0 0.55rem;
   color: var(--muted);
-  font-size: 0.7rem !important;
+  font-size: 0.55rem !important;
   letter-spacing: 0.08em;
   text-align: right;
   text-transform: uppercase;
@@ -177,8 +177,8 @@ body {
 
 .annotation-card p {
   margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.35;
+  font-size: 0.85rem !important;
+  line-height: 1.35 !important;
 }
 
 .annotation-link {
@@ -202,9 +202,9 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.84);
   color: var(--maroon);
-  padding: 0.28rem 0.58rem;
-  min-width: 3.2rem;
-  font-size: 0.75rem;
+  padding: 0.31rem 0.64rem;
+  min-width: 3.35rem;
+  font-size: 0.78rem;
   line-height: 1.2;
   font-family: var(--mono);
   cursor: pointer;
@@ -461,7 +461,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: rgba(254, 254, 254, 0.8);

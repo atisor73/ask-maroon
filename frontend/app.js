@@ -128,11 +128,15 @@ function buildAnnotationMarkup(step) {
           ? `<a class="annotation-link" href="${escapeHtml(step.linkHref)}" target="_blank" rel="noreferrer">${escapeHtml(step.linkLabel)}</a>`
           : ""
       }
-      <div class="annotation-controls">
+      ${
+        step.transient
+          ? ""
+          : `<div class="annotation-controls">
         <button class="annotation-control-button" type="button" data-tour-action="back"${isFirstStep ? " disabled" : ""}>Back</button>
         <button class="annotation-control-button annotation-control-button-secondary" type="button" data-tour-action="skip">Skip</button>
         <button class="annotation-control-button annotation-control-button-primary" type="button" data-tour-action="next">${isLastStep ? "Finish" : "Next"}</button>
-      </div>
+      </div>`
+      }
     </article>
     <button
       class="annotation-dot"
@@ -350,7 +354,14 @@ async function moveTourStep(direction) {
   }
 
   if (direction > 0 && activeTourStepIndex === 3 && nextStepIndex === 4) {
+    openTourAtStep(nextStepIndex);
     await animateTourSearchButton();
+    const searchSucceeded = await runSearch();
+    if (!searchSucceeded) {
+      return;
+    }
+    openTourAtStep(nextStepIndex + 1);
+    return;
   }
 
   openTourAtStep(nextStepIndex);
@@ -904,7 +915,7 @@ async function openRandomIssue() {
 
 // Submit the current search form to the backend, handle loading state, and render the returned results.
 async function runSearch(event) {
-  event.preventDefault();
+  event?.preventDefault();
 
   if (availableYearRange) {
     commitYearValueFromField(startYearValue);
@@ -914,7 +925,7 @@ async function runSearch(event) {
   const query = queryInput.value.trim();
   if (!query) {
     renderEmptyState("Enter a query first.");
-    return;
+    return false;
   }
 
   const params = new URLSearchParams({
@@ -946,7 +957,7 @@ async function runSearch(event) {
     const data = await response.json();
     if (!data.document_results.length) {
       renderEmptyState(`No results found for "${query}".`);
-      return;
+      return false;
     }
 
     // Tell the user which vector backend actually served the request.
@@ -955,8 +966,10 @@ async function runSearch(event) {
     currentVectorBackend = data.vector_backend;
     currentUsedFallback = Boolean(data.used_fallback);
     renderResultsPage();
+    return true;
   } catch (error) {
     renderEmptyState(`Search failed: ${error.message}`);
+    return false;
   }
 }
 
