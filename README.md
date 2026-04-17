@@ -78,6 +78,16 @@ http://127.0.0.1:8000/search?q=student%20protests&backend=openai
 http://127.0.0.1:8000/search?q=student%20protests&backend=sentence-transformers
 ```
 
+Rate limiting:
+- The backend now applies a first-pass in-memory rate limiter per client IP.
+- Defaults:
+  - `/search`: 20 requests per 60 seconds
+  - `/random-document`: 30 requests per 60 seconds
+  - `/document/{doc_id}`: 60 requests per 60 seconds
+  - `/pdf/{doc_id}`: 60 requests per 60 seconds
+  - `/search-metadata`: 120 requests per 60 seconds
+- Tune with environment variables such as `RATE_LIMIT_SEARCH_LIMIT=30` and `RATE_LIMIT_SEARCH_WINDOW_SECONDS=60`.
+
 
 # Frontend/
 Start backend: `uvicorn backend.app:app --reload`  
