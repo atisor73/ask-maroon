@@ -12,7 +12,7 @@ https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb
 - 7,240 PDF documents from 1902-1986 (300GB)
 - 181,564 chunks of 500 words overlapping by 75 words 
 <img src="imgs/histogram.png" width="80%">
-<img src="imgs/character_line.png" width="80%">
+<img src="imgs/annual_overlap.png" width="80%">
 
 
 # Introduction
