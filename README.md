@@ -11,7 +11,9 @@ https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb
 # Archival summary
 - 7,240 PDF documents from 1902-1986 (300GB)
 - 181,564 chunks of 500 words overlapping by 75 words 
-- histogram
+<img src="imgs/histogram.png" width="100%">
+<img src="imgs/character_line.png" width="100%">
+
 
 # Introduction
 The archival text files are chunked and semantically embedded using a model specifically tuned for semantic retrieval purposes. We use sentence-transformers/all-MiniLM-L6-v2 and OpenAI's text-embedding-3-small that have been trained on pairwise sentence similarity.
