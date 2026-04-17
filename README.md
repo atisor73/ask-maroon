@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb
 
 # Archival summary
 - 7,240 PDF documents from 1902-1986 (300GB)
-- 181,564 chunks of 500 words overlapping by 75 words 
+- 181,564 text chunks of 500 words overlapping by 75 words 
 <img src="imgs/histogram.png" width="80%">
 <img src="imgs/annual_overlap.png" width="80%">
 
@@ -37,7 +37,7 @@ Dylan Freedman, [author](https://github.com/freedmand/semantra) of `semantra`, d
 > The embedding models that Semantra uses convert all the text and queries you enter into long sequences of numbers that can be mathematically compared, and an exact substring match is not always significant in this sense. 
 
 
-`ask-maroon` attempts to tackle desired keyword matches by boosting FTS scores when quotes appear in queries, and enrich the richness of the search by doing top-N sampling. A really neat feature of `semantra` is the additive tagging that allow for results to add or subtract those new query embeddings from the original query to generate a new, more refined, direction to search in (quite literally). We have put all our eggs into the basket of top-N randomization.
+`ask-maroon` attempts to tackle desired keyword matches by boosting FTS scores when quotes appear in queries, and enrich the richness of the search by doing top-N sampling. A really neat feature of `semantra` is the additive tagging that allow for results to add or subtract those new query embeddings from the original query to generate a new, more refined, direction to search in (quite literally). We have put all our eggs into the basket of top-N randomization. 
 
 An example for where perfect alignment is not what you want is this. For example, if one were to query "poems", one would get articles directly using words related to 'poems': 'poetry', 'verse', etc. But the tool would not be able to infer or locate articles where an actual poem exists, that does not explicitly include any word related to poetry (try searching for this and see if the 1979-0928 issue comes up). In this sense, `ask-maroon` struggles with queries that involve higher-level reasoning that is not captured in the embedding.
 
