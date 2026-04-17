@@ -65,6 +65,10 @@ python3 embed_text.py --backend both --limit 200
 - ouptut/metadata/chunks.db
 - ouptut/page_text_cache/*
 
+`copy_output_to_r2.py`
+- uploads all files under `output/` to Cloudflare R2 recursively
+- skips existing bucket objects by default
+
 # R2 scraping mode
 If Hetzner does not have enough disk to store the whole corpus locally, `scraper_2.py` can now scrape the same source URLs and upload directly to Cloudflare R2.
 
@@ -75,6 +79,11 @@ Required environment variables in `.env`:
 - `R2_BUCKET`
 - optional: `R2_ENDPOINT_URL`
 
+Bucket vs prefix:
+- If you want objects stored under `s3://ask-maroon-dev/archive/...`, then set `R2_BUCKET=ask-maroon-dev`
+- and use `--r2-prefix archive`
+- `archive` is already the default prefix in these scripts
+
 Example:
 ```bash
 python3 scraper_2.py --mode r2 --r2-prefix maroon-archives --temp-dir /tmp/maroon-cache
@@ -84,3 +93,8 @@ Behavior:
 - In `--mode r2`, each PDF/text file is downloaded to a temporary local path, uploaded to R2, then deleted locally.
 - Existing R2 objects are skipped by default using an object existence check.
 - Pass `--force` if you intentionally want to overwrite objects already in the bucket.
+
+Bulk upload an existing `output/` tree:
+```bash
+python3 copy_output_to_r2.py --r2-prefix maroon-archives
+```

@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--r2-prefix",
         default=DEFAULT_R2_PREFIX,
-        help="Object key prefix used when uploading to R2.",
+        help="Object key prefix inside the target bucket, e.g. 'archive' for s3://<bucket>/archive/...",
     )
     parser.add_argument(
         "--temp-dir",
