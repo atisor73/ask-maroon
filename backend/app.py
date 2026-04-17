@@ -3,17 +3,19 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 
 try:
     from .db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
+    from .rate_limit import InMemoryRateLimiter, build_policy, rate_limit_dependency
     from .schemas import SearchMetadataResponse, SearchResponse
     from .search import search
     from .search_vector import preload_default_resources
 except ImportError:
     from db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
+    from rate_limit import InMemoryRateLimiter, build_policy, rate_limit_dependency
     from schemas import SearchMetadataResponse, SearchResponse
     from search import search
     from search_vector import preload_default_resources
@@ -22,6 +24,27 @@ except ImportError:
 app = FastAPI(title="Maroon Archive Search API")
 logger = logging.getLogger(__name__)
 DEFAULT_R2_PREFIX = "archive"
+rate_limiter = InMemoryRateLimiter()
+search_rate_limit = rate_limit_dependency(
+    build_policy(name="search", default_limit=20, default_window_seconds=60),
+    rate_limiter,
+)
+pdf_rate_limit = rate_limit_dependency(
+    build_policy(name="pdf", default_limit=60, default_window_seconds=60),
+    rate_limiter,
+)
+document_rate_limit = rate_limit_dependency(
+    build_policy(name="document", default_limit=60, default_window_seconds=60),
+    rate_limiter,
+)
+random_rate_limit = rate_limit_dependency(
+    build_policy(name="random_document", default_limit=30, default_window_seconds=60),
+    rate_limiter,
+)
+metadata_rate_limit = rate_limit_dependency(
+    build_policy(name="search_metadata", default_limit=120, default_window_seconds=60),
+    rate_limiter,
+)
 
 # Allow the deployed Cloudflare Pages frontend plus local dev servers.
 app.add_middleware(
@@ -106,7 +129,7 @@ def healthcheck() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/search", response_model=SearchResponse)
+@app.get("/search", response_model=SearchResponse, dependencies=[Depends(search_rate_limit)])
 def search_endpoint(
     q: str = Query(..., description="User search query"),
     backend: str = Query(
@@ -140,7 +163,11 @@ def search_endpoint(
     )
 
 
-@app.get("/search-metadata", response_model=SearchMetadataResponse)
+@app.get(
+    "/search-metadata",
+    response_model=SearchMetadataResponse,
+    dependencies=[Depends(metadata_rate_limit)],
+)
 def search_metadata_endpoint():
     row = fetch_year_range()
     if row is None or row["min_year"] is None or row["max_year"] is None:
@@ -148,7 +175,7 @@ def search_metadata_endpoint():
     return {"min_year": row["min_year"], "max_year": row["max_year"]}
 
 
-@app.get("/document/{doc_id}")
+@app.get("/document/{doc_id}", dependencies=[Depends(document_rate_limit)])
 def document_endpoint(doc_id: str) -> dict:
     row = fetch_document(doc_id)
     if row is None:
@@ -156,7 +183,7 @@ def document_endpoint(doc_id: str) -> dict:
     return dict(row)
 
 
-@app.get("/random-document")
+@app.get("/random-document", dependencies=[Depends(random_rate_limit)])
 def random_document_endpoint() -> dict:
     """
     Return one random issue so the frontend can support exploratory browsing.
@@ -190,7 +217,7 @@ def build_public_r2_url(object_key: str) -> Optional[str]:
     return "{}/{}".format(public_base_url.rstrip("/"), object_key.lstrip("/"))
 
 
-@app.get("/pdf/{doc_id}")
+@app.get("/pdf/{doc_id}", dependencies=[Depends(pdf_rate_limit)])
 def pdf_endpoint(doc_id: str):
     """
     Serve the original PDF so the frontend can open the source issue.
