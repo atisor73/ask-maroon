@@ -1,10 +1,11 @@
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 try:
     from .db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
@@ -20,6 +21,7 @@ except ImportError:
 
 app = FastAPI(title="Maroon Archive Search API")
 logger = logging.getLogger(__name__)
+DEFAULT_R2_PREFIX = "archive"
 
 # Allow the deployed Cloudflare Pages frontend plus local dev servers.
 app.add_middleware(
@@ -165,6 +167,29 @@ def random_document_endpoint() -> dict:
     return dict(row)
 
 
+def infer_pdf_r2_key(row: dict, prefix: str = DEFAULT_R2_PREFIX) -> Optional[str]:
+    pdf_r2_key = row.get("pdf_r2_key")
+    if pdf_r2_key:
+        return pdf_r2_key
+
+    doc_id = row.get("doc_id")
+    date_value = row.get("date")
+    year = row.get("year")
+    if doc_id and isinstance(date_value, str) and len(date_value) >= 7:
+        month = date_value[5:7]
+        normalized_prefix = prefix.strip("/")
+        key_prefix = f"{normalized_prefix}/" if normalized_prefix else ""
+        return f"{key_prefix}pdfs/{year}/{month}/{doc_id}.pdf"
+    return None
+
+
+def build_public_r2_url(object_key: str) -> Optional[str]:
+    public_base_url = os.getenv("R2_PUBLIC_BASE_URL", "").strip()
+    if not public_base_url:
+        return None
+    return "{}/{}".format(public_base_url.rstrip("/"), object_key.lstrip("/"))
+
+
 @app.get("/pdf/{doc_id}")
 def pdf_endpoint(doc_id: str):
     """
@@ -177,9 +202,23 @@ def pdf_endpoint(doc_id: str):
     if row is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    pdf_path = Path(row["pdf_path"])
+    row_dict = dict(row)
+    pdf_r2_key = infer_pdf_r2_key(row_dict)
+    if pdf_r2_key:
+        public_r2_url = build_public_r2_url(pdf_r2_key)
+        if public_r2_url:
+            return RedirectResponse(url=public_r2_url, status_code=307)
+
+    pdf_url = row_dict.get("pdf_url")
+    if pdf_url:
+        return RedirectResponse(url=pdf_url, status_code=307)
+
+    pdf_path = Path(row_dict["pdf_path"])
     if not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="PDF file not found")
+        raise HTTPException(
+            status_code=404,
+            detail="PDF file not found. Configure R2_PUBLIC_BASE_URL or rebuild metadata with R2 keys.",
+        )
 
     return FileResponse(
         pdf_path,

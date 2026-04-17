@@ -1,6 +1,26 @@
 import { DEMO_QUERY, TOUR_STEPS } from "./faqContent.js";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const LOCAL_API_BASE_URL = "http://127.0.0.1:8000";
+const DEPLOYED_API_BASE_URL = "https://128.140.7.175";
+
+function normalizeApiBaseUrl() {
+  const configuredBaseUrl =
+    typeof window.__ASK_MAROON_API_BASE_URL__ === "string"
+      ? window.__ASK_MAROON_API_BASE_URL__.trim()
+      : "";
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  const isLocalStaticPreview = ["127.0.0.1", "localhost"].includes(window.location.hostname);
+  return isLocalStaticPreview ? LOCAL_API_BASE_URL : DEPLOYED_API_BASE_URL;
+}
+
+function apiUrl(path) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${normalizeApiBaseUrl()}${normalizedPath}`;
+}
 
 const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
@@ -679,7 +699,7 @@ function commitYearValueFromField(changedInput) {
 // Fetch the available year range from the backend and initialize the year filter UI.
 async function initializeYearFilter() {
   try {
-    const response = await fetch(`${API_BASE_URL}/search-metadata`);
+    const response = await fetch(apiUrl("/search-metadata"));
     if (!response.ok) {
       throw new Error(`Year metadata request failed with status ${response.status}`);
     }
@@ -863,7 +883,7 @@ function openPdf(documentResult) {
 
   // For now we open the issue PDF inline in the right-hand frame.
   // The browser PDF viewer often honors #page=N, so we append it when we have one.
-  const basePdfUrl = `${API_BASE_URL}/pdf/${encodeURIComponent(documentResult.doc_id)}`;
+  const basePdfUrl = apiUrl(`/pdf/${encodeURIComponent(documentResult.doc_id)}`);
   const pdfUrl = pageNumber ? `${basePdfUrl}#page=${pageNumber}` : basePdfUrl;
   selectedDocId = documentResult.doc_id;
   selectedPageNumber = pageNumber;
@@ -893,7 +913,7 @@ async function openRandomIssue() {
   setStatus("Exploring a random issue...");
 
   try {
-    const response = await fetch(`${API_BASE_URL}/random-document`);
+    const response = await fetch(apiUrl("/random-document"));
     if (!response.ok) {
       throw new Error(`Random issue request failed with status ${response.status}`);
     }
@@ -948,7 +968,7 @@ async function runSearch(event) {
   resultsList.innerHTML = "";
 
   try {
-    const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`);
+    const response = await fetch(`${apiUrl("/search")}?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`Search request failed with status ${response.status}`);
     }

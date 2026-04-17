@@ -10,6 +10,22 @@ OUTPUT_DIR = PROJECT_ROOT / "output"
 ARCHIVE_DB = OUTPUT_DIR / "metadata" / "archive.db"
 CHUNKS_DB = OUTPUT_DIR / "metadata" / "chunks.db"
 
+BASE_DOCUMENT_FIELDS = [
+    "doc_id",
+    "year",
+    "date",
+    "title",
+    "pdf_path",
+    "text_path",
+    "source_url",
+    "pdf_url",
+    "plain_text_url",
+]
+OPTIONAL_DOCUMENT_FIELDS = [
+    "pdf_r2_key",
+    "text_r2_key",
+]
+
 
 def get_archive_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(ARCHIVE_DB)
@@ -23,12 +39,23 @@ def get_chunks_connection() -> sqlite3.Connection:
     return conn
 
 
+def get_document_select_fields(conn: sqlite3.Connection) -> str:
+    existing_columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(documents)").fetchall()
+    }
+    fields = list(BASE_DOCUMENT_FIELDS)
+    fields.extend(field for field in OPTIONAL_DOCUMENT_FIELDS if field in existing_columns)
+    return ", ".join(fields)
+
+
 def fetch_document(doc_id: str) -> Optional[sqlite3.Row]:
     conn = get_archive_connection()
     try:
+        select_fields = get_document_select_fields(conn)
         return conn.execute(
-            """
-            SELECT doc_id, year, date, title, pdf_path, text_path, source_url, pdf_url, plain_text_url
+            f"""
+            SELECT {select_fields}
             FROM documents
             WHERE doc_id = ?
             """,
@@ -41,9 +68,10 @@ def fetch_document(doc_id: str) -> Optional[sqlite3.Row]:
 def fetch_random_document() -> Optional[sqlite3.Row]:
     conn = get_archive_connection()
     try:
+        select_fields = get_document_select_fields(conn)
         return conn.execute(
-            """
-            SELECT doc_id, year, date, title, pdf_path, text_path, source_url, pdf_url, plain_text_url
+            f"""
+            SELECT {select_fields}
             FROM documents
             WHERE pdf_path IS NOT NULL
               AND pdf_path != ''
@@ -79,9 +107,10 @@ def fetch_documents(doc_ids: Iterable[str]) -> List[sqlite3.Row]:
     placeholders = ",".join("?" for _ in doc_ids)
     conn = get_archive_connection()
     try:
+        select_fields = get_document_select_fields(conn)
         return conn.execute(
             f"""
-            SELECT doc_id, year, date, title, pdf_path, text_path, source_url, pdf_url, plain_text_url
+            SELECT {select_fields}
             FROM documents
             WHERE doc_id IN ({placeholders})
             ORDER BY date, doc_id

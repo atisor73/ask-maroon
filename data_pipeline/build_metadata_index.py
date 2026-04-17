@@ -21,6 +21,7 @@ DOCUMENTS_JSON = OUTPUT_DIR / "documents.json"
 METADATA_DIR = OUTPUT_DIR / "metadata"
 DB_PATH = METADATA_DIR / "archive.db"
 PARQUET_PATH = METADATA_DIR / "docs.parquet"
+DEFAULT_R2_PREFIX = "archive"
 
 
 # Load the scraped documents JSON file and index its records by document ID.
@@ -54,6 +55,12 @@ def extract_doc_id(text_path: Path) -> str:
 def infer_pdf_path(text_path: Path) -> Path:
     relative = text_path.relative_to(TEXT_DIR)
     return PDF_DIR / relative.with_suffix(".pdf")
+
+
+def build_r2_key(path: Path, root: Path, prefix: str = DEFAULT_R2_PREFIX) -> str:
+    relative = path.relative_to(root).as_posix()
+    normalized_prefix = prefix.strip("/")
+    return f"{normalized_prefix}/{relative}" if normalized_prefix else relative
 
 # Try to reconstruct an ISO-style date string from the document ID naming convention.
 def infer_date_from_doc_id(doc_id: str) -> Optional[str]:
@@ -106,7 +113,9 @@ def build_document_row(text_path: Path, docs_by_id: Dict[str, dict]) -> dict:
         "date": date,
         "title": source.get("title"),
         "pdf_path": str(pdf_path),
+        "pdf_r2_key": build_r2_key(pdf_path, OUTPUT_DIR),
         "text_path": str(text_path),
+        "text_r2_key": build_r2_key(text_path, OUTPUT_DIR),
         "source_url": source.get("doc_url"),
         "pdf_url": source.get("pdf_url"),
         "plain_text_url": source.get("plain_text_url"),
@@ -126,7 +135,9 @@ def init_db(conn: sqlite3.Connection) -> None:
             date TEXT,
             title TEXT,
             pdf_path TEXT NOT NULL,
+            pdf_r2_key TEXT,
             text_path TEXT,
+            text_r2_key TEXT,
             source_url TEXT,
             pdf_url TEXT,
             plain_text_url TEXT,
@@ -136,18 +147,32 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    ensure_document_columns(conn)
     conn.execute("DELETE FROM documents")
+
+
+def ensure_document_columns(conn: sqlite3.Connection) -> None:
+    existing_columns = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(documents)").fetchall()
+    }
+    if "pdf_r2_key" not in existing_columns:
+        conn.execute("ALTER TABLE documents ADD COLUMN pdf_r2_key TEXT")
+    if "text_r2_key" not in existing_columns:
+        conn.execute("ALTER TABLE documents ADD COLUMN text_r2_key TEXT")
 
 # Insert the prepared document metadata rows into the SQLite documents table and commit the transaction.
 def insert_rows(conn: sqlite3.Connection, rows: Iterable[dict]) -> None:
     conn.executemany(
         """
         INSERT INTO documents (
-            doc_id, year, date, title, pdf_path, text_path, source_url,
-            pdf_url, plain_text_url, page_count, ocr_status, text_length
+            doc_id, year, date, title, pdf_path, pdf_r2_key, text_path,
+            text_r2_key, source_url, pdf_url, plain_text_url, page_count,
+            ocr_status, text_length
         ) VALUES (
-            :doc_id, :year, :date, :title, :pdf_path, :text_path, :source_url,
-            :pdf_url, :plain_text_url, :page_count, :ocr_status, :text_length
+            :doc_id, :year, :date, :title, :pdf_path, :pdf_r2_key, :text_path,
+            :text_r2_key, :source_url, :pdf_url, :plain_text_url, :page_count,
+            :ocr_status, :text_length
         )
         """,
         rows,
