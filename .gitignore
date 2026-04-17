@@ -4,3 +4,6 @@ output-backup/*
 output/*.txt
 .env
 imgs/demo.mov
+backend/__pycache__/
+.venv/*
+.venv/
