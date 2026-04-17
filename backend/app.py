@@ -17,11 +17,14 @@ except ImportError:
 
 app = FastAPI(title="Maroon Archive Search API")
 
-# Allow a local frontend dev server to call this API.
-# We keep this permissive for early prototyping and can tighten it later.
+# Allow the deployed Cloudflare Pages frontend plus local dev servers.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://ask-maroon.pages.dev",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
