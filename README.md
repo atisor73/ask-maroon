@@ -1,16 +1,24 @@
 # ask-maroon
-<img src="imgs/demo.png" width="100%">
 
 This project enables users to search the Maroon archives dating from 1902-1985. Given a query, ask-maroon uses semantic embeddings to retrieve what it thinks to be the most relevant set of articles from the collection.
 
+
+<img src="imgs/demo.png" width="100%">
+
+
 https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb
 
+# Archival summary
+- 7,240 PDF documents from 1902-1986 (300GB)
+- 181,564 chunks of 500 words overlapping by 75 words 
+- histogram
+
 # Limitations
-This tool is not perfect, as digitizing the text files from pdfs involves some requisite amount of spelling error and noise. The poor quality of the OCR could be very sensitive to noise and spelling errors. Users are recommended to try extending their queries to include more relevant alternative keywords (i.e, bikes, bike, bicycles, cyclists, etc.).
+Digitizing the pdfs into text files involves some noisy text, which our embeddings could be quite sensitive to. While semantic embedding can be really rich given how much information can be stored in these higher dimensional spaces, we encourage users to thoughtfully query and parse through the results, and iteratively improve their queries. Currently we are experimenting with LLM-assisted query expansion techniques, as well as embedding images alongside text.
 
-While semantic embedding can be really rich given how much information can be stored in these higher dimensional spaces, we encourage users to thoughtfully query and parse through the results, and iteratively improve their queries. (One extension we are working on is 'query expansion' using ntp, which is something users can already do by refining their queries with an LLM).
+`ask-maroon` might struggle with queries that involve higher-level reasoning or inference. For example, if one were to query "poems", one would get articles directly using words related to 'poems': 'poetry', 'verse', etc. But the tool would not be able to infer or locate articles where an actual poem exists, that does not explicitly include any word related to poetry (try searching for this and see if the 1979-0928 issue comes up). 
 
-I think Dylan Freedman, author of Semantra, describes this best. 
+Dylan Freedman, author of `semantra`, describes this best:
 > Using a semantic search engine is fundamentally different than an exact text matching algorithm.
 > For starters, there will always be search results for a given query, no matter how irrelevant it is. 
 > The scores may be really low, but the results will never disappear entirely. 
@@ -20,16 +28,18 @@ I think Dylan Freedman, author of Semantra, describes this best.
 > At a high level, this is because words can mean different things in different contexts, e.g. the word "leaves" can refer to the leaves on trees or to someone leaving. 
 > The embedding models that Semantra uses convert all the text and queries you enter into long sequences of numbers that can be mathematically compared, and an exact substring match is not always significant in this sense. See the embeddings concept doc for more information on embeddings.
 
+Discuss sampling techniques 
 
-Additionally, ask-maroon might struggle with queries that involve higher-level reasoning or inference. For example, if one were to query "poems", one would get articles directly using words related to 'poems': 'poetry', 'verse', etc. But the tool would not be able to infer or locate articles where an actual poem exists, that does not explicitly include any word related to poetry (try searching for this and see if the 1979-0928 issue comes up). We are relying entirely on the sentence and document embedding, both of which are black-box tools we did not develop ourselves, to sufficiently infer poetry. At this point we have not integrated an LLM at the end of the pipeline to synthesize the retrieved documents, and the tool's primary use is document retrieval where the query is expected to align with articles in the embedding space. 
 
-We are working to integrate image embeddings and other new features.
+# Tips
+- Users are recommended to try extending their queries to include more relevant alternative keywords (i.e, bikes, bike, bicycles, cyclists, etc.) 
+- Adding double string quotes for keywords (compare query: russian authors vs query: russian authors "tolstoy") boosts the ranking of exact keyword matches (under the hood this adds an FTS boosting score from 10% -> 40% of the weighted rank).
+- Expand PDF for better CTRL/CMD+F search experience
+
 
 # Technical details
-The archival text files are chunked and semantically embedded using a model specifically tuned for semantic retrieval purposes. In our case, we use sentence-transformers/all-MiniLM-L6-v2 and OpenAI's text-embedding-3-small that have been trained on pairwise sentence similarity. These embeddings are stored alongside the original pdfs. At query time, the user’s input query is embedded with the same model, and cosine similarity is used to identify semantically relevant matches between the input query and archival texts. In parallel, full-text search (FTS) is performed, and results from both methods are combined and ranked before being returned to the user. During chunking, approximate page numbers are inferred to link results back to their original document locations.
+The archival text files are chunked and semantically embedded using a model specifically tuned for semantic retrieval purposes. We use sentence-transformers/all-MiniLM-L6-v2 and OpenAI's text-embedding-3-small that have been trained on pairwise sentence similarity.
 
-# Model details
-A little more about the models:
 - `sentence-transformers/all-MiniLM-L6-v2`: "This is a sentence-transformers model: It maps sentences & paragraphs to a 384 dimensional dense vector space and can be used for tasks like clustering or semantic search." Fine-tuned on a dataset of over 1 billion sentence pairs. Training data includes Reddit comment pairs, S2ORC citation/title/abstract pairs, WikiAnswers duplicate questions, PAQ Q/A pairs, and Stack Exchange title/body pairs. The stated fine-tuning objective is contrastive: compute cosine similarities between all sentence pairs in a batch, then apply cross-entropy against the true pair.   
 Source: ![Hugging Face model card](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)   
 Note: Both hidden dimension (internal width of transformer layers) and embedding dimension are 384.
@@ -38,14 +48,11 @@ Note: Both hidden dimension (internal width of transformer layers) and embedding
 Source: ![Docs](https://developers.openai.com/api/docs/models/text-embedding-3-small)  
 Note: Hidden dimension is unknown/proprietary, but the embedding dimension is 1,536.
 
-# Tips
-Adding double string quotes for keywords (compare query: russian authors vs query: russian authors "tolstoy")
-- under the hood this adds an FTS boosting score from 10% -> 40% of the weight
-Expand PDF for better command F search experience
+ These embeddings are stored alongside the original pdfs. At query time, the user’s input query is embedded with the same model, and cosine similarity is used to identify semantically relevant matches. In parallel, full-text search (FTS) is performed, and results from both methods are combined and ranked before being returned to the user. During chunking, approximate page numbers are inferred to link results back to their original document locations.
 
 
 # To-do's
-- A. Add baseline stats to README/info: get year range, total number of documents, number of documents per year (make histogram), 
+- A. Add baseline stats to README/info: number of documents per year (make histogram)
   
 - E. Search for 'typical set':
   - Currently have toggle btw Greedy search vs. Serendipitous search.? or 
@@ -161,14 +168,11 @@ Serve frontend: `python3 -m http.server 3000`
 Navigate: http://127.0.0.1:3000/frontend/
 Backend docs: http://127.0.0.1:8000/docs
 
-
-
-
-# Test queries
-crimes related to bikes cycling cyclists bicycles
-articles related to haircuts, hairstyles, hair
-yarn, quilts, knitting, sewing
-yarns
+# Semantic analysis ideas
+- PCA -> 3D -> normalize -> sphere -> plot w d3 
+- color by year, topic, keyword presence
+- spheres preserve angle
+- animate spherical embeddings over time
 
 
 # Authorship
