@@ -78,7 +78,7 @@ export const TOUR_STEPS = [
     id: "results-guide",
     title: "Ranked archive chunks",
     text:
-      "Results appear here. Highlighting is applied after the embedding search and ranking, and estimates which phrases likely contributed to the high ranking - it is not just the highlighted portion used in the similarity computation.",
+      "Results appear here. Highlighting is applied after the embedding search and ranking, and estimates which phrases likely contributed to the high ranking - the entire text chunk is used in the similarity embedding.",
     mode: "sample",
     openAdvanced: true,
       leftPct: 5,
