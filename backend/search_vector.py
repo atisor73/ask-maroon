@@ -87,6 +87,28 @@ def _get_resources(
     return _RESOURCE_CACHE[cache_key]
 
 
+def preload_default_resources() -> dict:
+    """
+    Warm the default sentence-transformers retrieval stack into memory.
+
+    This loads the FAISS index, metadata JSONL, and the sentence-transformers
+    model so the first user query does not pay the cold-start cost.
+    """
+    index, metadata, model = _get_resources(
+        backend="sentence-transformers",
+        embeddings_dir=SENTENCE_TRANSFORMERS_DIR,
+        model_name=DEFAULT_MODEL_NAME,
+    )
+    return {
+        "backend": "sentence-transformers",
+        "embeddings_dir": str(SENTENCE_TRANSFORMERS_DIR),
+        "model_name": DEFAULT_MODEL_NAME,
+        "metadata_rows": len(metadata),
+        "index_type": type(index).__name__,
+        "model_type": type(model).__name__,
+    }
+
+
 def _embed_query(query: str, backend: str, model, model_name: str) -> np.ndarray:
     if backend == "sentence-transformers":
         return model.encode(

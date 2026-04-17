@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -9,13 +10,16 @@ try:
     from .db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
     from .schemas import SearchMetadataResponse, SearchResponse
     from .search import search
+    from .search_vector import preload_default_resources
 except ImportError:
     from db import PROJECT_ROOT, fetch_document, fetch_random_document, fetch_year_range
     from schemas import SearchMetadataResponse, SearchResponse
     from search import search
+    from search_vector import preload_default_resources
 
 
 app = FastAPI(title="Maroon Archive Search API")
+logger = logging.getLogger(__name__)
 
 # Allow the deployed Cloudflare Pages frontend plus local dev servers.
 app.add_middleware(
@@ -29,6 +33,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def preload_search_resources() -> None:
+    resource_summary = preload_default_resources()
+    logger.info("Preloaded search resources: %s", resource_summary)
 
 
 def run_search_with_fallback(
