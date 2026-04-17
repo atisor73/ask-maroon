@@ -1,6 +1,6 @@
 export const GITHUB_ISSUES_URL = "https://github.com/atisor73/ask-maroon/";
 
-export const DEMO_QUERY = "jazz and music on the midway";
+export const DEMO_QUERY = "jazz and music around the midway";
 
 export const TOUR_STEPS = [
   {
@@ -112,7 +112,7 @@ export const TOUR_STEPS = [
     id: "feedback-guide",
     title: "Send feedback",
     text:
-      "If you would like to report a bug or feature request, please open an issue on Github.",
+      "The Github resository contains more detailed notes on semantic retrieval. If you would like to report a bug or request a feature, please open an issue.",
     mode: "sample",
     openAdvanced: true,
     leftPct: 55,
