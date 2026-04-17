@@ -10,13 +10,6 @@
 - [in progress] B2. Add better documentation to each individual file as to what it is doing methodologically and how it is doing it (it will force you to do your own code review)
 
 
-- [in progress] Z. Figure out production/deployment & make budget proposal 
-  - Cloudflare R2 (Storage), Cloudflare Pages (Front-end), Hetzner or Digital Ocean (Back-end) 
-	- 1. storage for 300 GB PDFs/data (cloudflare r2)
-	- 2. backend fastAPI (ec2 or lightsail)
-	- 3. frontend hosting/CDN (cloudflare pages)
-
-
 # Semantic analysis ideas
 - PCA -> 3D -> normalize -> sphere -> plot w d3 
 - color by year, topic, keyword presence
