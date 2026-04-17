@@ -1,6 +1,7 @@
 import { DEMO_QUERY, TOUR_STEPS } from "./faqContent.js";
 
 const LOCAL_API_BASE_URL = "http://127.0.0.1:8000";
+const DEPLOYED_API_BASE_URL = "https://128.140.7.175";
 
 function normalizeApiBaseUrl() {
   const configuredBaseUrl =
@@ -13,7 +14,7 @@ function normalizeApiBaseUrl() {
   }
 
   const isLocalStaticPreview = ["127.0.0.1", "localhost"].includes(window.location.hostname);
-  return isLocalStaticPreview ? LOCAL_API_BASE_URL : `${window.location.origin}/api`;
+  return isLocalStaticPreview ? LOCAL_API_BASE_URL : DEPLOYED_API_BASE_URL;
 }
 
 function apiUrl(path) {
