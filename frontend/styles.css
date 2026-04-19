@@ -296,22 +296,6 @@ body {
   color: #fff;
 }
 
-.query-mode-indicator {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  margin-top: 8px;
-  padding: 3px 9px;
-  border: 1px solid rgba(109, 16, 34, 0.2);
-  border-radius: 999px;
-  background: rgba(109, 16, 34, 0.08);
-  color: var(--maroon);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-family: var(--mono);
-}
-
 .search-button.is-tour-pressed {
   transform: translateY(1px) scale(0.985);
   filter: brightness(0.96);

@@ -25,7 +25,6 @@ function apiUrl(path) {
 const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
 const imageSearchToggle = document.querySelector("#image-search-toggle");
-const queryModeIndicator = document.querySelector("#query-mode-indicator");
 const backendSelect = document.querySelector("#backend-select");
 const backendField = backendSelect.closest(".field");
 const limitInput = document.querySelector("#limit-input");
@@ -161,9 +160,6 @@ function updateImageSearchUi() {
   imageSearchToggle.classList.toggle("is-active", imageSearchEnabled);
   imageSearchToggle.setAttribute("aria-pressed", String(imageSearchEnabled));
   imageSearchToggle.title = imageSearchEnabled ? "Image search mode enabled" : "Toggle image search mode";
-  if (queryModeIndicator) {
-    queryModeIndicator.hidden = !imageSearchEnabled;
-  }
   if (backendField) {
     backendField.hidden = imageSearchEnabled;
   }
