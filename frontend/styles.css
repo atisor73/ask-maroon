@@ -253,6 +253,49 @@ body {
   color: white;
 }
 
+.query-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.query-input-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.query-icon-button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(29, 29, 34, 0.18);
+  border-radius: 10px;
+  background: #fefefe;
+  color: rgb(91, 91, 91);
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.query-icon-button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.query-icon-button:hover,
+.query-icon-button:focus-visible {
+  border-color: rgba(109, 16, 34, 0.6);
+}
+
+.query-icon-button.is-active {
+  border-color: var(--maroon);
+  background: var(--maroon);
+  color: #fff;
+}
+
 .search-button.is-tour-pressed {
   transform: translateY(1px) scale(0.985);
   filter: brightness(0.96);

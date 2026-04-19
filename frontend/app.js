@@ -24,6 +24,7 @@ function apiUrl(path) {
 
 const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
+const imageSearchToggle = document.querySelector("#image-search-toggle");
 const backendSelect = document.querySelector("#backend-select");
 const limitInput = document.querySelector("#limit-input");
 const searchButton = document.querySelector(".search-button");
@@ -66,6 +67,8 @@ let currentPage = 1;
 let availableYearRange = null;
 let currentVectorBackend = null;
 let currentUsedFallback = false;
+let imageSearchEnabled = false;
+let lastTextBackendValue = backendSelect.value;
 let loadingStatusTimer = null;
 let loadingStatusStageIndex = 0;
 let loadingStatusDotTick = 0;
@@ -116,11 +119,60 @@ const SEARCH_LOADING_STAGES = [
   "Ranking results",
 ];
 const SEARCH_LOADING_STAGE_DOT_COUNTS = [10, 10, Infinity];
+const clipBackendOption = { value: "clip", label: "openai/CLIP" };
+const defaultBackendOptions = Array.from(backendSelect.options).map((option) => ({
+  value: option.value,
+  label: option.textContent,
+}));
 
 function sleep(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function setBackendOptions(options, selectedValue) {
+  backendSelect.innerHTML = "";
+
+  options.forEach(({ value, label }) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    backendSelect.appendChild(option);
+  });
+
+  const nextValue = options.some((option) => option.value === selectedValue)
+    ? selectedValue
+    : options[0]?.value;
+
+  if (nextValue) {
+    backendSelect.value = nextValue;
+  }
+}
+
+function updateImageSearchUi() {
+  if (!imageSearchToggle) {
+    return;
+  }
+
+  imageSearchToggle.classList.toggle("is-active", imageSearchEnabled);
+  imageSearchToggle.setAttribute("aria-pressed", String(imageSearchEnabled));
+  imageSearchToggle.title = imageSearchEnabled ? "Image search mode enabled" : "Toggle image search mode";
+
+  if (imageSearchEnabled) {
+    setBackendOptions([clipBackendOption], clipBackendOption.value);
+    return;
+  }
+
+  setBackendOptions(defaultBackendOptions, lastTextBackendValue);
+}
+
+function toggleImageSearchMode() {
+  if (!imageSearchEnabled) {
+    lastTextBackendValue = backendSelect.value;
+  }
+  imageSearchEnabled = !imageSearchEnabled;
+  updateImageSearchUi();
 }
 
 function setSearchModeValue(mode) {
@@ -993,6 +1045,7 @@ async function runSearch(event) {
 }
 
 searchForm.addEventListener("submit", runSearch);
+imageSearchToggle?.addEventListener("click", toggleImageSearchMode);
 randomIssueButton.addEventListener("click", openRandomIssue);
 infoButton.addEventListener("click", toggleAnnotationLayer);
 searchModeInputs.forEach((input) => {
@@ -1052,3 +1105,4 @@ window.addEventListener("keydown", handleTourKeydown);
 initializeYearFilter();
 updateSamplingControls();
 chooseRandomPlaceholderPrompt();
+updateImageSearchUi();
