@@ -1,4 +1,4 @@
-import { DEMO_QUERY, TOUR_STEPS } from "./faqContent.js";
+import { DEMO_QUERY, MOBILE_TOUR_STEPS, TOUR_STEPS } from "./faqContent.js";
 
 const LOCAL_API_BASE_URL = "http://127.0.0.1:8000";
 const DEPLOYED_API_BASE_URL = "https://128.140.7.175";
@@ -24,6 +24,7 @@ function apiUrl(path) {
 
 const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
+const mastheadMark = document.querySelector(".masthead-mark");
 const backendSelect = document.querySelector("#backend-select");
 const limitInput = document.querySelector("#limit-input");
 const searchButton = document.querySelector(".search-button");
@@ -45,17 +46,22 @@ const paginationBar = document.querySelector("#pagination-bar");
 const paginationText = document.querySelector("#pagination-text");
 const prevPageButton = document.querySelector("#prev-page-button");
 const nextPageButton = document.querySelector("#next-page-button");
+const homeButton = document.querySelector("#home-button");
 const viewerTitle = document.querySelector("#viewer-title");
 const viewerSubtitle = document.querySelector("#viewer-subtitle");
 const openPdfLink = document.querySelector("#open-pdf-link");
 const pdfFrame = document.querySelector("#pdf-frame");
 const toggleViewerButton = document.querySelector("#toggle-viewer-button");
+const viewerActions = document.querySelector(".viewer-actions");
 const randomIssueButton = document.querySelector("#random-issue-button");
 const collapseViewerEdge = document.querySelector("#collapse-viewer-edge");
 const infoButton = document.querySelector("#info-button");
 const annotationLayer = document.querySelector("#annotation-layer");
 const annotationItems = document.querySelector("#annotation-items");
 const advancedSearchCard = document.querySelector("#advanced-search-card");
+const mobileViewerMediaQuery = window.matchMedia("(max-width: 980px)");
+const collapseViewerEdgeHomeParent = collapseViewerEdge.parentElement;
+const collapseViewerEdgeHomeNextSibling = collapseViewerEdge.nextSibling;
 
 let selectedCard = null;
 let selectedDocId = null;
@@ -116,11 +122,16 @@ const SEARCH_LOADING_STAGES = [
   "Ranking results",
 ];
 const SEARCH_LOADING_STAGE_DOT_COUNTS = [10, 10, Infinity];
+const INITIAL_STATUS_MESSAGE = "Run query, see ranked text chunk results here.";
 
 function sleep(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
 }
 
 function setSearchModeValue(mode) {
@@ -133,13 +144,18 @@ function setSearchModeValue(mode) {
   updateSamplingControls();
 }
 
+function activeTourSteps() {
+  return mobileViewerMediaQuery.matches ? MOBILE_TOUR_STEPS : TOUR_STEPS;
+}
+
 function buildAnnotationMarkup(step) {
+  const steps = activeTourSteps();
   const isFirstStep = activeTourStepIndex === 0;
-  const isLastStep = activeTourStepIndex === TOUR_STEPS.length - 1;
+  const isLastStep = activeTourStepIndex === steps.length - 1;
 
   return `
     <article class="annotation-card" data-annotation-card="${step.id}">
-      <p class="annotation-step-label">Step ${activeTourStepIndex + 1} of ${TOUR_STEPS.length}</p>
+      <p class="annotation-step-label">Step ${activeTourStepIndex + 1} of ${steps.length}</p>
       <h2>${escapeHtml(step.title)}</h2>
       <p>${escapeHtml(step.text)}</p>
       ${
@@ -172,12 +188,14 @@ function buildAnnotationMarkup(step) {
 }
 
 function renderAnnotationLayer() {
-  if (activeTourStepIndex < 0 || activeTourStepIndex >= TOUR_STEPS.length) {
+  const steps = activeTourSteps();
+
+  if (activeTourStepIndex < 0 || activeTourStepIndex >= steps.length) {
     annotationItems.innerHTML = "";
     return;
   }
 
-  annotationItems.innerHTML = buildAnnotationMarkup(TOUR_STEPS[activeTourStepIndex]);
+  annotationItems.innerHTML = buildAnnotationMarkup(steps[activeTourStepIndex]);
   wireAnnotationControls();
   positionAnnotations();
   window.requestAnimationFrame(() => {
@@ -194,7 +212,7 @@ function positionAnnotations() {
 
   const containerRect = annotationItems.getBoundingClientRect();
   const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const step = TOUR_STEPS[activeTourStepIndex];
+  const step = activeTourSteps()[activeTourStepIndex];
 
   if (!step) {
     return;
@@ -341,12 +359,14 @@ async function typeDemoQuery(runToken) {
 }
 
 function openTourAtStep(stepIndex) {
-  if (stepIndex < 0 || stepIndex >= TOUR_STEPS.length) {
+  const steps = activeTourSteps();
+
+  if (stepIndex < 0 || stepIndex >= steps.length) {
     return;
   }
 
   activeTourStepIndex = stepIndex;
-  syncTourStepUi(TOUR_STEPS[stepIndex]);
+  syncTourStepUi(steps[stepIndex]);
   renderAnnotationLayer();
 }
 
@@ -361,13 +381,14 @@ async function animateTourSearchButton() {
 }
 
 async function moveTourStep(direction) {
+  const steps = activeTourSteps();
   const nextStepIndex = activeTourStepIndex + direction;
 
   if (nextStepIndex < 0) {
     return;
   }
 
-  if (nextStepIndex >= TOUR_STEPS.length) {
+  if (nextStepIndex >= steps.length) {
     closeTour();
     return;
   }
@@ -541,6 +562,69 @@ function renderEmptyState(message) {
   setStatus(message);
 }
 
+function resetViewerState() {
+  viewerExpanded = false;
+  selectedDocId = null;
+  selectedPageNumber = null;
+  setSelectedCard(null);
+  viewerTitle.textContent = "No document selected";
+  viewerSubtitle.textContent = "";
+  openPdfLink.href = "#";
+  pdfFrame.src = "about:blank";
+  updateViewerMode();
+}
+
+function resetSearchFormState() {
+  queryInput.value = "";
+  backendSelect.value = "sentence-transformers";
+  limitInput.value = "20";
+  advancedSearchCard.open = false;
+  setSearchModeValue("greedy");
+
+  if (availableYearRange) {
+    startYearInput.value = String(availableYearRange.min_year);
+    endYearInput.value = String(availableYearRange.max_year);
+    updateYearSummary();
+  }
+}
+
+function resetToLandingState() {
+  closeTour();
+  stopLoadingStatus();
+  resetSearchFormState();
+  renderEmptyState(INITIAL_STATUS_MESSAGE);
+  resetViewerState();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function burstPhoenixFeathers(event) {
+  if (mobileViewerMediaQuery.matches || !mastheadMark) {
+    return;
+  }
+
+  const rect = mastheadMark.getBoundingClientRect();
+  const originX = event?.clientX ?? rect.left + rect.width * 0.55;
+  const originY = event?.clientY ?? rect.top + rect.height * 0.45;
+  const particleCount = 9;
+
+  for (let index = 0; index < particleCount; index += 1) {
+    const feather = document.createElement("span");
+    feather.className = "phoenix-feather";
+    feather.style.setProperty("--feather-start-x", `${originX + randomBetween(-4, 4)}px`);
+    feather.style.setProperty("--feather-start-y", `${originY + randomBetween(-4, 4)}px`);
+    feather.style.setProperty("--feather-dx", `${randomBetween(-30, 30)}px`);
+    feather.style.setProperty("--feather-dy", `${randomBetween(-28, 24)}px`);
+    feather.style.setProperty("--feather-width", `${randomBetween(2, 4.5)}px`);
+    feather.style.setProperty("--feather-height", `${randomBetween(5, 9)}px`);
+    feather.style.setProperty("--feather-rotate", `${randomBetween(-70, 70)}deg`);
+    feather.style.setProperty("--feather-spin", `${randomBetween(-35, 35)}deg`);
+    feather.addEventListener("animationend", () => {
+      feather.remove();
+    });
+    document.body.appendChild(feather);
+  }
+}
+
 // Show a status message describing which slice of results is currently visible and which backend produced them.
 function updateResultsStatus() {
   if (!currentResults.length || !currentVectorBackend) {
@@ -559,7 +643,41 @@ function updateResultsStatus() {
 // Toggle the page layout between normal mode and expanded PDF-viewer mode.
 function updateViewerMode() {
   document.body.classList.toggle("pdf-focus-mode", viewerExpanded);
-  toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF-Viewer" : "Expand PDF-Viewer";
+  syncCollapseViewerEdgePlacement();
+  if (mobileViewerMediaQuery.matches) {
+    toggleViewerButton.textContent = viewerExpanded ? "Back to Results" : "Open PDF Viewer";
+    return;
+  }
+
+  toggleViewerButton.textContent = viewerExpanded ? "Collapse PDF Viewer" : "Expand PDF Viewer";
+}
+
+function syncCollapseViewerEdgePlacement() {
+  if (mobileViewerMediaQuery.matches) {
+    collapseViewerEdge.textContent = "<<<";
+    collapseViewerEdge.setAttribute("aria-label", "Return to selected result");
+    viewerActions?.insertBefore(collapseViewerEdge, toggleViewerButton);
+    return;
+  }
+
+  collapseViewerEdge.textContent = ">>>";
+  collapseViewerEdge.setAttribute("aria-label", "Bring back query panel");
+  if (collapseViewerEdge.parentElement !== collapseViewerEdgeHomeParent) {
+    collapseViewerEdgeHomeParent.insertBefore(collapseViewerEdge, collapseViewerEdgeHomeNextSibling);
+  }
+}
+
+function returnToSelectedResult() {
+  viewerExpanded = false;
+  updateViewerMode();
+
+  if (!selectedCard) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    selectedCard.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 }
 
 // Build the decade tick marks and labels used by the year-range slider.
@@ -811,6 +929,11 @@ function buildResultCard(documentResult) {
   });
 
   article.addEventListener("click", () => {
+    if (mobileViewerMediaQuery.matches) {
+      toggleExpandedText();
+      return;
+    }
+
     setSelectedCard(article);
     if (selectedDocId === documentResult.doc_id && selectedPageNumber === pageNumber) {
       toggleExpandedText();
@@ -843,12 +966,10 @@ function renderPagination() {
   updateResultsStatus();
 }
 
-// Render the current page of result cards and auto-open the first visible document.
+// Render the current page of result cards using desktop and mobile-specific viewer behavior.
 function renderResultsPage() {
   resultsList.innerHTML = "";
-  selectedDocId = null;
-  selectedPageNumber = null;
-  setSelectedCard(null);
+  resetViewerState();
 
   if (!currentResults.length) {
     renderPagination();
@@ -863,7 +984,7 @@ function renderResultsPage() {
     const card = buildResultCard(documentResult);
     resultsList.appendChild(card);
 
-    if (index === 0) {
+    if (!mobileViewerMediaQuery.matches && index === 0) {
       setSelectedCard(card);
       openPdf(documentResult);
     }
@@ -878,6 +999,11 @@ function openPdf(documentResult) {
   const pageNumber = preferredPage(documentResult);
 
   if (selectedDocId === documentResult.doc_id && selectedPageNumber === pageNumber) {
+    if (mobileViewerMediaQuery.matches && !viewerExpanded) {
+      viewerExpanded = true;
+      updateViewerMode();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     return;
   }
 
@@ -893,6 +1019,12 @@ function openPdf(documentResult) {
     : `${documentResult.date || "Unknown date"}`;
   openPdfLink.href = pdfUrl;
   pdfFrame.src = pdfUrl;
+
+  if (mobileViewerMediaQuery.matches) {
+    viewerExpanded = true;
+    updateViewerMode();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 }
 
 // Mark one result card as selected and clear the selection styling from the previous card.
@@ -995,6 +1127,7 @@ async function runSearch(event) {
 searchForm.addEventListener("submit", runSearch);
 randomIssueButton.addEventListener("click", openRandomIssue);
 infoButton.addEventListener("click", toggleAnnotationLayer);
+mastheadMark?.addEventListener("click", burstPhoenixFeathers);
 searchModeInputs.forEach((input) => {
   input.addEventListener("change", updateSamplingControls);
 });
@@ -1018,13 +1151,25 @@ endYearValue.addEventListener("keydown", (event) => {
 });
 
 toggleViewerButton.addEventListener("click", () => {
+  if (mobileViewerMediaQuery.matches && viewerExpanded) {
+    returnToSelectedResult();
+    return;
+  }
+
   viewerExpanded = !viewerExpanded;
   updateViewerMode();
 });
 
 collapseViewerEdge.addEventListener("click", () => {
-  viewerExpanded = false;
-  updateViewerMode();
+  returnToSelectedResult();
+});
+
+homeButton.addEventListener("click", resetToLandingState);
+homeButton.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    resetToLandingState();
+  }
 });
 
 prevPageButton.addEventListener("click", () => {
@@ -1045,6 +1190,10 @@ nextPageButton.addEventListener("click", () => {
 });
 
 window.addEventListener("resize", () => {
+  updateViewerMode();
+  if (!annotationLayer.hidden && activeTourStepIndex >= activeTourSteps().length) {
+    closeTour();
+  }
   positionAnnotations();
 });
 window.addEventListener("keydown", handleTourKeydown);
@@ -1052,3 +1201,4 @@ window.addEventListener("keydown", handleTourKeydown);
 initializeYearFilter();
 updateSamplingControls();
 chooseRandomPlaceholderPrompt();
+updateViewerMode();
