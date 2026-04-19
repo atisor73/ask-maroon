@@ -87,6 +87,13 @@ body {
   gap: 12px;
 }
 
+.masthead-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .title-rule {
   display: none;
 }
@@ -97,13 +104,17 @@ body {
   margin: 0px 0 12px;
 }
 
-.info-button {
+.icon-button {
   width: 30px;
   height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(29, 29, 34, 0.18);
   border-radius: 999px;
   background: #fefefe;
   color: rgb(120,120,120,1.0);
+  text-decoration: none;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1rem;
   font-weight: 700;
@@ -114,10 +125,23 @@ body {
 }
 
 .info-button:hover,
-.info-button.is-active {
+.info-button.is-active,
+.github-button:hover,
+.github-button:focus-visible {
   border: 1.3px solid rgba(109, 16, 34, 0.6);
   /* border-color: rgba(109, 16, 34, 0.45);   */
   /* box-shadow: 0 10px 22px rgba(37, 24, 26, 0.14); */
+}
+
+.github-button {
+  padding: 0;
+  color: rgb(95, 95, 95);
+}
+
+.github-button svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
 }
 
 /* .info-button:hover { */
