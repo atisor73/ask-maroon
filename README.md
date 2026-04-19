@@ -62,7 +62,6 @@ Note: Hidden dimension is unknown/proprietary, but the embedding dimension is 1,
  These embeddings are stored alongside the original pdfs. At query time, the user’s input query is embedded with the same model, and cosine similarity is used to identify semantically relevant matches. In parallel, full-text search (FTS) is performed, and results from both methods are combined and ranked before being returned to the user. During chunking, approximate page numbers are inferred to link results back to their original document locations.
 
 
-# Authorship
-Co-written with GPT-5.4
-
-# Acknowledgements
+# Authors
+Rosita Fu, Jinny Kim, Jacob Rampino.
+Code co-written with GPT-5.4
