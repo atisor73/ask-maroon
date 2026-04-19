@@ -1286,6 +1286,12 @@ body {
     font-size: 1rem;
   }
 
+  .result-snippet,
+  .result-fulltext {
+    font-size: 0.85rem !important;
+    line-height: 1.45;
+  }
+
   .result-kicker,
   .viewer-subtitle {
     max-width: none;
