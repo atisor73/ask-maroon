@@ -25,7 +25,9 @@ function apiUrl(path) {
 const searchForm = document.querySelector("#search-form");
 const queryInput = document.querySelector("#query-input");
 const imageSearchToggle = document.querySelector("#image-search-toggle");
+const queryModeIndicator = document.querySelector("#query-mode-indicator");
 const backendSelect = document.querySelector("#backend-select");
+const backendField = backendSelect.closest(".field");
 const limitInput = document.querySelector("#limit-input");
 const searchButton = document.querySelector(".search-button");
 const searchModeInputs = document.querySelectorAll('input[name="search-mode"]');
@@ -69,6 +71,7 @@ let currentVectorBackend = null;
 let currentUsedFallback = false;
 let imageSearchEnabled = false;
 let lastTextBackendValue = backendSelect.value;
+let currentSearchType = "text";
 let loadingStatusTimer = null;
 let loadingStatusStageIndex = 0;
 let loadingStatusDotTick = 0;
@@ -158,6 +161,12 @@ function updateImageSearchUi() {
   imageSearchToggle.classList.toggle("is-active", imageSearchEnabled);
   imageSearchToggle.setAttribute("aria-pressed", String(imageSearchEnabled));
   imageSearchToggle.title = imageSearchEnabled ? "Image search mode enabled" : "Toggle image search mode";
+  if (queryModeIndicator) {
+    queryModeIndicator.hidden = !imageSearchEnabled;
+  }
+  if (backendField) {
+    backendField.hidden = imageSearchEnabled;
+  }
 
   if (imageSearchEnabled) {
     setBackendOptions([clipBackendOption], clipBackendOption.value);
@@ -603,8 +612,9 @@ function updateResultsStatus() {
   const start = (currentPage - 1) * RESULTS_PER_PAGE + 1;
   const end = Math.min(currentResults.length, currentPage * RESULTS_PER_PAGE);
   const fallbackPrefix = currentUsedFallback ? "OpenAI unavailable, fell back. " : "";
+  const resultLabel = currentSearchType === "images" ? "image results" : "documents";
   setStatus(
-    `${fallbackPrefix}Showing ${start}\u2013${end} of ${currentResults.length} documents using ${currentVectorBackend}.`
+    `${fallbackPrefix}Showing ${start}\u2013${end} of ${currentResults.length} ${resultLabel} using ${currentVectorBackend}.`
   );
 }
 
@@ -800,6 +810,30 @@ function preferredPage(documentResult) {
   return bestChunk?.page_number || null;
 }
 
+function preferredImagePage(imageResult) {
+  return imageResult?.page_number || null;
+}
+
+function normalizeTextResults(data) {
+  return data?.text_results || data?.document_results || [];
+}
+
+function normalizeImageResults(data) {
+  return data?.image_results || [];
+}
+
+function resolveAssetUrl(value) {
+  if (!value) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  return apiUrl(value);
+}
+
 // Build one interactive result card, including snippet toggling and PDF-opening behavior.
 function buildResultCard(documentResult) {
   const article = document.createElement("article");
@@ -874,6 +908,57 @@ function buildResultCard(documentResult) {
   return article;
 }
 
+function buildImageResultCard(imageResult) {
+  const article = document.createElement("article");
+  article.className = "result-card result-card-image";
+
+  const title = imageResult.title || imageResult.doc_id;
+  const date = imageResult.date || "Unknown date";
+  const pageLabel = imageResult.page_number ? ` • p. ${imageResult.page_number}` : "";
+  const contextSnippet = imageResult.context_snippet || "Visual match from the archive page.";
+  const thumbnailUrl = resolveAssetUrl(imageResult.thumbnail_url || imageResult.image_url);
+
+  article.innerHTML = `
+    <div class="result-image-wrap">
+      ${
+        thumbnailUrl
+          ? `<img class="result-image-thumb" src="${escapeHtml(thumbnailUrl)}" alt="${escapeHtml(`${title}${pageLabel}`)}" loading="lazy" />`
+          : `<div class="result-image-thumb result-image-thumb-placeholder">No preview available</div>`
+      }
+    </div>
+    <div class="result-header">
+      <h3>${escapeHtml(title)}</h3>
+      <p class="result-kicker">${date}${pageLabel}</p>
+    </div>
+    <p class="result-snippet result-image-caption">${escapeHtml(contextSnippet)}</p>
+    <div class="result-meta">
+      <span>
+        ${escapeHtml(imageResult.result_kind || "image")} score: ${Number(imageResult.score || 0).toFixed(3)}
+      </span>
+      <button type="button">View PDF</button>
+    </div>
+  `;
+
+  const openPdfButton = article.querySelector(".result-meta button");
+  const pageNumber = preferredImagePage(imageResult);
+
+  openPdfButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setSelectedCard(article);
+    openPdf(imageResult);
+  });
+
+  article.addEventListener("click", () => {
+    setSelectedCard(article);
+    if (selectedDocId === imageResult.doc_id && selectedPageNumber === pageNumber) {
+      return;
+    }
+    openPdf(imageResult);
+  });
+
+  return article;
+}
+
 // Update the pagination controls and labels based on the current result page.
 function renderPagination() {
   const totalResults = currentResults.length;
@@ -911,13 +996,14 @@ function renderResultsPage() {
   const end = start + RESULTS_PER_PAGE;
   const pageResults = currentResults.slice(start, end);
 
-  pageResults.forEach((documentResult, index) => {
-    const card = buildResultCard(documentResult);
+  pageResults.forEach((result, index) => {
+    const card =
+      currentSearchType === "images" ? buildImageResultCard(result) : buildResultCard(result);
     resultsList.appendChild(card);
 
     if (index === 0) {
       setSelectedCard(card);
-      openPdf(documentResult);
+      openPdf(result);
     }
   });
 
@@ -927,7 +1013,8 @@ function renderResultsPage() {
 
 // Load the selected document PDF into the viewer and update the viewer title, subtitle, and link.
 function openPdf(documentResult) {
-  const pageNumber = preferredPage(documentResult);
+  const pageNumber =
+    currentSearchType === "images" ? preferredImagePage(documentResult) : preferredPage(documentResult);
 
   if (selectedDocId === documentResult.doc_id && selectedPageNumber === pageNumber) {
     return;
@@ -999,11 +1086,14 @@ async function runSearch(event) {
     return false;
   }
 
+  currentSearchType = imageSearchEnabled ? "images" : "text";
+
   const params = new URLSearchParams({
     q: query,
     backend: backendSelect.value,
     limit: limitInput.value,
     search_mode: selectedSearchMode(),
+    search_type: currentSearchType,
   });
 
   if (selectedSearchMode() === "sample") {
@@ -1026,15 +1116,18 @@ async function runSearch(event) {
     }
 
     const data = await response.json();
-    if (!data.document_results.length) {
+    const nextResults = currentSearchType === "images" ? normalizeImageResults(data) : normalizeTextResults(data);
+    if (!nextResults.length) {
       renderEmptyState(`No results found for "${query}".`);
       return false;
     }
 
-    // Tell the user which vector backend actually served the request.
-    currentResults = data.document_results;
+    currentResults = nextResults;
     currentPage = 1;
-    currentVectorBackend = data.vector_backend;
+    currentVectorBackend =
+      currentSearchType === "images"
+        ? data.used_image_backend || data.vector_backend || clipBackendOption.label
+        : data.used_text_backend || data.vector_backend || backendSelect.value;
     currentUsedFallback = Boolean(data.used_fallback);
     renderResultsPage();
     return true;
