@@ -65,6 +65,21 @@ body {
   letter-spacing: -0.03em;
 }
 
+.home-button {
+  cursor: pointer;
+}
+
+.home-button:focus-visible {
+  outline: 2px solid rgba(109, 16, 34, 0.45);
+  outline-offset: 4px;
+}
+
+@media (min-width: 981px) {
+  .info-button {
+    display: inline-flex;
+  }
+}
+
 .viewer-header h2 {
   margin: 0;
   font-size: clamp(0.6rem, 1.9vw, 1.3rem);
@@ -368,6 +383,53 @@ body {
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.08));
   position: relative;
   z-index: 1;
+}
+
+@media (min-width: 981px) {
+  .masthead-mark {
+    cursor: pointer;
+  }
+}
+
+.phoenix-feather {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: var(--feather-width, 4px);
+  height: var(--feather-height, 8px);
+  border-radius: 999px 999px 999px 999px / 80% 80% 35% 35%;
+  background: linear-gradient(180deg, rgba(109, 16, 34, 0.92) 0%, rgba(224, 147, 22, 0.82) 100%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(var(--feather-start-x), var(--feather-start-y), 0) rotate(var(--feather-rotate, 0deg));
+  animation: phoenix-feather-burst 710ms ease-out forwards;
+  z-index: 12;
+}
+
+@keyframes phoenix-feather-burst {
+  0% {
+    opacity: 0;
+    transform:
+      translate3d(var(--feather-start-x), var(--feather-start-y), 0)
+      rotate(var(--feather-rotate, 0deg))
+      scale(0.85);
+  }
+
+  18% {
+    opacity: 0.95;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate3d(
+        calc(var(--feather-start-x) + var(--feather-dx, 0px)),
+        calc(var(--feather-start-y) + var(--feather-dy, 0px)),
+        0
+      )
+      rotate(calc(var(--feather-rotate, 0deg) + var(--feather-spin, 0deg)))
+      scale(0.55);
+  }
 }
 
 .eyebrow {
@@ -1140,17 +1202,274 @@ body {
 }
 
 @media (max-width: 980px) {
+  .page-shell {
+    padding: 16px;
+  }
+
   .layout {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
 
   .topbar {
-    flex-direction: column;
-    align-items: start;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .masthead {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .masthead-mark {
+    display: block;
+    width: 52px;
+    flex: 0 0 auto;
+    align-self: center;
+  }
+
+  .masthead-title-row {
+    align-items: center;
+    gap: 10px;
+  }
+
+  .info-button {
+    display: none;
+  }
+
+  .topbar h1 {
+    font-size: clamp(1.1rem, 5vw, 1.5rem);
+    line-height: 1.05;
+  }
+
+  .masthead-subrow {
+    justify-content: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .random-issue-link {
+    font-size: 0.8rem;
+  }
+
+  .results-panel,
+  .viewer-panel {
+    min-height: auto;
+  }
+
+  .search-card,
+  .result-card {
+    padding: 14px;
+  }
+
+  .field input,
+  .field select,
+  .search-button {
+    min-height: 40px;
+  }
+
+  .query-input-row {
+    gap: 8px;
   }
 
   .controls-row {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 88px;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .compact-field,
+  .controls-row .compact-field:first-child,
+  .controls-row .compact-field:nth-child(2) {
+    min-width: 0;
+    flex: initial;
+  }
+
+  .search-button {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 14px;
+  }
+
+  .year-filter-header,
+  .result-header,
+  .result-meta,
+  .viewer-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-mode-inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .radio-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .radio-chip {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding: 7px 10px;
+    font-size: 0.84rem;
+  }
+
+  .sampling-row {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    justify-content: stretch;
+    width: 100%;
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .sampling-label {
+    margin-top: 2px;
+  }
+
+  .year-slider-readout {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+    gap: 8px;
+  }
+
+  .year-slider-label {
+    flex: 1 1 0;
+  }
+
+  .year-slider-label input {
+    width: 100%;
+  }
+
+  .year-dual-slider {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .year-tick-label {
+    font-size: 0.6rem;
+  }
+
+  .result-card h3,
+  .viewer-header h2 {
+    font-size: 1rem;
+  }
+
+  .result-snippet,
+  .result-fulltext {
+    font-size: 0.85rem !important;
+    line-height: 1.45;
+  }
+
+  .result-kicker,
+  .viewer-subtitle {
+    max-width: none;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .result-meta {
+    gap: 10px;
+  }
+
+  .result-meta button,
+  .viewer-link,
+  .viewer-mode-button {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .viewer-panel {
+    position: relative;
+    top: 0;
+    border-radius: 5px;
+  }
+
+  .viewer-header {
+    gap: 12px;
+    padding: 16px 16px 0;
+  }
+
+  .viewer-main {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .viewer-topline {
+    display: none;
+  }
+
+  .viewer-heading {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .viewer-actions {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .viewer-mode-button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(109, 16, 34, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+  }
+
+  body.pdf-focus-mode .viewer-mode-button {
+    display: none;
+  }
+
+  .viewer-link {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-top: 0;
+    padding: 8px 10px;
+    font-size: 0.74rem;
+  }
+
+  .collapse-viewer-edge {
+    position: static;
+    transform: none;
+    flex: 0 0 auto;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 8px 10px;
+    border: 1px solid rgba(109, 16, 34, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--maroon);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+  }
+
+  .pdf-frame {
+    min-height: calc(100vh - 200px);
+    margin-top: 14px;
   }
 
   .annotation-layer {
@@ -1205,4 +1524,24 @@ body.pdf-focus-mode .viewer-header {
 
 body.pdf-focus-mode .pdf-frame {
   min-height: max(220vh, calc(100vh - 120px));
+}
+
+@media (max-width: 980px) {
+  body.pdf-focus-mode .viewer-panel {
+    min-height: calc(100vh - 32px);
+  }
+
+  body.pdf-focus-mode .viewer-header {
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(223, 218, 218, 0.98) 0%, rgba(223, 218, 218, 0.95) 100%);
+  }
+
+  body.pdf-focus-mode .collapse-viewer-edge {
+    display: inline-flex;
+  }
+
+  body.pdf-focus-mode .pdf-frame {
+    min-height: calc(100vh - 170px);
+    margin-top: 0;
+  }
 }

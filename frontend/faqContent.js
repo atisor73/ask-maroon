@@ -125,3 +125,5 @@ export const TOUR_STEPS = [
     linkHref: GITHUB_ISSUES_URL,
   },
 ];
+
+export const MOBILE_TOUR_STEPS = TOUR_STEPS.slice(0, -2);
