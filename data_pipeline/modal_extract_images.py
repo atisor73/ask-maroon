@@ -232,17 +232,38 @@ def process_pdf_batch_impl(request: dict, execution_mode: str) -> List[dict]:
             pdf_path = local_pdf_path(temp_root, doc_info)
             download_r2_object(client, bucket, pdf_key, pdf_path)
 
-            rows = extract_images_from_pdf(
-                pdf_path=pdf_path,
-                model=model,
-                pdf_root=temp_root / "pdfs",
-                output_dir=output_root,
-                labels_to_keep=request.get("labels", IMAGE_LABELS),
-                dpi=request.get("dpi", DEFAULT_DPI),
-                page_limit=request.get("page_limit"),
-                padding=request.get("padding", DEFAULT_PADDING),
-                min_side=request.get("min_side", DEFAULT_MIN_SIDE),
-            )
+            try:
+                rows = extract_images_from_pdf(
+                    pdf_path=pdf_path,
+                    model=model,
+                    pdf_root=temp_root / "pdfs",
+                    output_dir=output_root,
+                    labels_to_keep=request.get("labels", IMAGE_LABELS),
+                    dpi=request.get("dpi", DEFAULT_DPI),
+                    page_limit=request.get("page_limit"),
+                    padding=request.get("padding", DEFAULT_PADDING),
+                    min_side=request.get("min_side", DEFAULT_MIN_SIDE),
+                )
+            except Exception as exc:
+                print(
+                    "[{} worker] failed to process {}: {}".format(
+                        execution_mode,
+                        pdf_key,
+                        exc,
+                    )
+                )
+                results.append(
+                    {
+                        "pdf_key": pdf_key,
+                        "doc_id": doc_info["doc_id"],
+                        "status": "failed",
+                        "error": str(exc),
+                        "metadata_key": metadata_key,
+                        "execution_mode": execution_mode,
+                        "runtime_device": runtime_device,
+                    }
+                )
+                continue
 
             rows_with_r2 = [
                 metadata_row_with_r2_keys(row=row, output_root=output_root, r2_prefix=request["r2_prefix"])
@@ -360,6 +381,7 @@ def main(
 
     processed = 0
     skipped = 0
+    failed = 0
     total_regions = 0
 
     worker = process_pdf_batch_gpu if use_gpu else process_pdf_batch_cpu
@@ -371,6 +393,8 @@ def main(
                 total_regions += int(item.get("num_regions", 0))
             elif item["status"] == "skipped":
                 skipped += 1
+            elif item["status"] == "failed":
+                failed += 1
 
             print(
                 "Doc {} -> {} on {}".format(
@@ -379,7 +403,10 @@ def main(
                     item.get("runtime_device", "unknown"),
                 )
             )
+            if item.get("status") == "failed":
+                print("  Failure:", item.get("error", "unknown error"))
 
     print("Processed PDFs:", processed)
     print("Skipped PDFs:", skipped)
+    print("Failed PDFs:", failed)
     print("Extracted regions:", total_regions)
