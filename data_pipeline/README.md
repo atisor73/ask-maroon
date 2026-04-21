@@ -69,6 +69,19 @@ python3 embed_text.py --backend both --limit 200
 - uploads all files under `output/` to Cloudflare R2 recursively
 - skips existing bucket objects by default
 
+`extract_images.py`
+- extracts image-like regions from PDFs using Newspaper Navigator
+- writes local crops under `output/extracted_images/...`
+- writes local metadata to `output/metadata/image_regions.jsonl`
+
+`modal_extract_images.py`
+- lists source PDFs from R2 under `archive/pdfs/...`
+- downloads small PDF batches into Modal worker temp storage
+- runs `extract_images.py` logic remotely
+- uploads crops back to R2 under `archive/extracted_images/<year>/<month>/<doc_id>/...`
+- uploads per-document metadata as `archive/extracted_images/<year>/<month>/<doc_id>/regions.jsonl`
+- skips documents that already have `regions.jsonl` unless `--force` is passed
+
 # R2 scraping mode
 If Hetzner does not have enough disk to store the whole corpus locally, `scraper_2.py` can now scrape the same source URLs and upload directly to Cloudflare R2.
 
@@ -97,4 +110,21 @@ Behavior:
 Bulk upload an existing `output/` tree:
 ```bash
 python3 copy_output_to_r2.py --r2-prefix maroon-archives
+```
+
+# Modal image extraction
+The Modal runner expects:
+- an R2-backed Modal Secret named `cloudflare-r2` by default
+- keys matching your existing `.env` names:
+  - `R2_ACCOUNT_ID`
+  - `R2_ACCESS_KEY_ID`
+  - `R2_SECRET_ACCESS_KEY`
+  - `R2_BUCKET`
+  - optional `R2_ENDPOINT_URL`
+
+You can rename the Modal secret by setting `MODAL_R2_SECRET_NAME` in your local shell before running `modal`.
+
+Example:
+```bash
+modal run data_pipeline/modal_extract_images.py --limit 100 --batch-size 4
 ```
