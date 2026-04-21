@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/0ab05e58-b895-44af-beef-c8bb0c639bdb
 <img src="imgs/histogram.png" width="80%">
 <img src="imgs/annual_overlap.png" width="80%">
 
-It seems that the content length of the Maroon increased per issue after WW2, coinciding with a lower rate of publishing.
+We can see a decline in both the number of issues and total character count during and following WWI and WWII, alongside an increase in average content length per issue following WWII, suggesting a shift toward less frequent but lengthier publications.
 
 # Introduction
 The archival text files are chunked and semantically embedded using a model specifically tuned for semantic retrieval purposes. We use sentence-transformers/all-MiniLM-L6-v2 and OpenAI's text-embedding-3-small that have been trained on pairwise sentence similarity.
