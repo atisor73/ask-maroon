@@ -1,0 +1,36 @@
+name: image-extractor
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  # NEED 3.10 for Detectron2
+  - python=3.10
+
+  # Core utilities
+  - pip
+  - ipykernel 
+  - requests
+  - beautifulsoup4
+  - tqdm
+
+  # PDF handling
+  - pdf2image
+  - poppler
+
+  # Computer vision
+  - opencv
+  - pillow
+
+  # PyTorch
+  - pytorch
+  - torchvision
+  - cpuonly
+
+  # Pip installs
+  - pip:
+      - layoutparser
+      - ipywidgets
+      - faiss-cpu
+      - transformers
