@@ -63,5 +63,8 @@ Note: Hidden dimension is unknown/proprietary, but the embedding dimension is 1,
 
 
 # Authors
-Rosita Fu, Jinny Kim, Jacob Rampino.
-Code co-written with GPT-5.4
+Rosita Fu: Developer for semantic retrieval, frontend, backend, and deployment.
+Jacob Rampino: Developer for image extraction and CLIP integration. Provided technical direction on text-image embeddings.
+Jinny Kim: Project supervisor and original visionary behind the project.
+
+Code co-written with GPT-5.4 and Codex.
