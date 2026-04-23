@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Extracted Image Gallery</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Archive Image Browser</p>
+          <h1>Extracted Image Gallery</h1>
+          <p class="header-copy">
+            Browse extracted image regions by decade, open a year on demand, and click any
+            thumbnail to expand the original crop.
+          </p>
+        </div>
+        <div class="summary-card">
+          <p class="summary-label">Indexed images</p>
+          <p class="summary-value" id="total-image-count">Loading...</p>
+          <p class="summary-note" id="generation-note"></p>
+        </div>
+      </header>
+
+      <main class="page-layout">
+        <aside class="panel panel-left">
+          <div class="panel-heading">
+            <h2>Decades</h2>
+            <p>Choose a decade to load its years and thumbnails.</p>
+          </div>
+          <div id="decade-list" class="decade-list" aria-live="polite"></div>
+        </aside>
+
+        <section class="panel panel-right">
+          <div class="panel-heading">
+            <h2 id="detail-title">Gallery</h2>
+            <p id="detail-subtitle">Loading decade summaries...</p>
+          </div>
+          <div id="year-sections" class="year-sections" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="lightbox" class="lightbox">
+      <div class="lightbox-shell">
+        <button id="lightbox-close" class="lightbox-close" type="button" aria-label="Close image">
+          Close
+        </button>
+        <img id="lightbox-image" class="lightbox-image" alt="" />
+        <div class="lightbox-meta">
+          <h3 id="lightbox-title"></h3>
+          <p id="lightbox-caption"></p>
+          <a id="lightbox-link" target="_blank" rel="noreferrer">Open original image</a>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
+

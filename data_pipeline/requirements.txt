@@ -10,3 +10,4 @@ wordsegment
 pypdf
 pandas
 pyarrow
+Pillow
