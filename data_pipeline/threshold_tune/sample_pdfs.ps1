@@ -9,6 +9,7 @@ $files = rclone lsf r2:ask-maroon-dev/archive/pdfs --recursive --files-only |
 
 $byYear = $files | Group-Object { ($_ -split "/")[0] }
 
+# set num for stratified sample by year
 $sampled = foreach ($group in $byYear) {
     $group.Group | Get-Random -Count ([Math]::Min(5, $group.Count))
 }
@@ -22,6 +23,7 @@ if (Test-Path $checkpointFile) {
 $tempFile = New-TemporaryFile
 $sampled | Set-Content $tempFile
 
+# bump or revert num transfers depending on connection speed
 rclone copy r2:ask-maroon-dev/archive/pdfs $outputRoot --files-from $tempFile --progress --transfers 4 --checksum
 
 $sampled | Add-Content $checkpointFile
