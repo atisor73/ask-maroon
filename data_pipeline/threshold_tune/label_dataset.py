@@ -61,21 +61,24 @@ def collect_pages(pdf_root: Path) -> list[dict]:
     for year_dir in sorted(pdf_root.iterdir()):
         if not (year_dir.is_dir() and year_dir.name.isdigit()):
             continue
-        for pdf in sorted(year_dir.glob("*.pdf")):
-            archive = f"{year_dir.name}/{pdf.name}"
-            try:
-                n_pages = len(convert_from_path(str(pdf), dpi=18,
-                                                first_page=1, last_page=1))
-                n_pages = max(n_pages, 1)
-            except Exception:
-                n_pages = 1
-            for pg in rng.sample(range(n_pages), min(PAGES_PER_PDF, n_pages)):
-                pages.append({
-                    "archive_path": archive,
-                    "local_path":   str(pdf),
-                    "year":         year_dir.name,
-                    "page_num":     pg,
-                })
+        for month_dir in sorted(year_dir.iterdir()):
+            if not (month_dir.is_dir() and month_dir.name.isdigit()):
+                continue
+            for pdf in sorted(month_dir.glob("*.pdf")):
+                archive = f"{year_dir.name}/{month_dir.name}/{pdf.name}"
+                try:
+                    n_pages = len(convert_from_path(str(pdf), dpi=18,
+                                                    first_page=1, last_page=1))
+                    n_pages = max(n_pages, 1)
+                except Exception:
+                    n_pages = 1
+                for pg in rng.sample(range(n_pages), min(PAGES_PER_PDF, n_pages)):
+                    pages.append({
+                        "archive_path": archive,
+                        "local_path":   str(pdf),
+                        "year":         year_dir.name,
+                        "page_num":     pg,
+                    })
     rng.shuffle(pages)
     return pages
 
