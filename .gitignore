@@ -1,6 +1,7 @@
 output/*
 output-backup/*
 *.pdf
+*.zip
 output/*.txt
 .env
 imgs/demo.mov

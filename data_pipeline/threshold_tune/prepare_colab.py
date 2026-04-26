@@ -5,7 +5,7 @@ Run this on Windows before uploading to Colab.
   python prepare_colab.py
 
 Outputs to ~/.ipython/ask-maroon/data_pipeline/threshold_tune/colab_upload/
-  - manifest.csv       year, filename, archive_path, size_bytes
+  - manifest.csv       year, month, filename, archive_path, size_bytes
   - pdfs_chunk_01.zip  split into <=4 GB slices for Drive upload limits
 
 Then drag the colab_upload/ folder into Google Drive.
@@ -24,24 +24,28 @@ def collect_pdfs(pdf_root: Path) -> list[dict]:
     for year_dir in sorted(pdf_root.iterdir()):
         if not (year_dir.is_dir() and year_dir.name.isdigit()):
             continue
-        for pdf in sorted(year_dir.glob("*.pdf")):
-            pdfs.append({
-                "year":         year_dir.name,
-                "filename":     pdf.name,
-                "local_path":   str(pdf),
-                "archive_path": f"{year_dir.name}/{pdf.name}",
-                "size_bytes":   pdf.stat().st_size,
-            })
+        for month_dir in sorted(year_dir.iterdir()):
+            if not (month_dir.is_dir() and month_dir.name.isdigit()):
+                continue
+            for pdf in sorted(month_dir.glob("*.pdf")):
+                pdfs.append({
+                    "year":         year_dir.name,
+                    "month":        month_dir.name,
+                    "filename":     pdf.name,
+                    "local_path":   str(pdf),
+                    "archive_path": f"{year_dir.name}/{month_dir.name}/{pdf.name}",
+                    "size_bytes":   pdf.stat().st_size,
+                })
     return pdfs
 
 
 def write_manifest(pdfs: list[dict], out_dir: Path) -> Path:
     path = out_dir / "manifest.csv"
     with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["year", "filename", "archive_path", "size_bytes"])
+        w = csv.DictWriter(f, fieldnames=["year", "month", "filename", "archive_path", "size_bytes"])
         w.writeheader()
         for p in pdfs:
-            w.writerow({k: p[k] for k in ["year", "filename", "archive_path", "size_bytes"]})
+            w.writerow({k: p[k] for k in ["year", "month", "filename", "archive_path", "size_bytes"]})
     return path
 
 
