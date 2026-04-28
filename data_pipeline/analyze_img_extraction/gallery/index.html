@@ -13,7 +13,7 @@
           <p class="eyebrow">Archive Image Browser</p>
           <h1>Extracted Image Gallery</h1>
           <p class="header-copy">
-            Browse extracted image regions by decade, open a year on demand, and click any
+            Browse extracted image regions by decade and year. Click any
             thumbnail to expand the original crop.
           </p>
         </div>
@@ -45,19 +45,33 @@
 
     <dialog id="lightbox" class="lightbox">
       <div class="lightbox-shell">
-        <button id="lightbox-close" class="lightbox-close" type="button" aria-label="Close image">
-          Close
-        </button>
-        <img id="lightbox-image" class="lightbox-image" alt="" />
-        <div class="lightbox-meta">
-          <h3 id="lightbox-title"></h3>
-          <p id="lightbox-caption"></p>
-          <a id="lightbox-link" target="_blank" rel="noreferrer">Open original image</a>
+        <div class="lightbox-toolbar">
+          <button id="lightbox-rotate-left" class="lightbox-tool" type="button" aria-label="Rotate image left">
+            ↺
+          </button>
+          <button id="lightbox-rotate-right" class="lightbox-tool" type="button" aria-label="Rotate image right">
+            ↻
+          </button>
+          <button id="lightbox-close" class="lightbox-close" type="button" aria-label="Close image">
+            ×
+          </button>
         </div>
+        <button id="lightbox-prev" class="lightbox-nav lightbox-nav-prev" type="button" aria-label="Previous image">
+          ‹
+        </button>
+        <div class="lightbox-stage">
+          <img id="lightbox-image" class="lightbox-image" alt="" />
+          <div class="lightbox-meta">
+            <h3 id="lightbox-title"></h3>
+            <p id="lightbox-caption"></p>
+          </div>
+        </div>
+        <button id="lightbox-next" class="lightbox-nav lightbox-nav-next" type="button" aria-label="Next image">
+          ›
+        </button>
       </div>
     </dialog>
 
     <script src="./app.js" type="module"></script>
   </body>
 </html>
-
